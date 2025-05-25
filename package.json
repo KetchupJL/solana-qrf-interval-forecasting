@@ -1,0 +1,45 @@
+{
+  "name": "solana-qrf-interval-forecasting",
+  "version": "1.0.0",
+  "description": "[![Build Status](https://img.shields.io/github/actions/workflow/status/KetchupJL/solana-qrf/ci.yml)](https://github.com/KetchupJL/solana-qrf/actions)\r [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KetchupJL/solana-qrf-interval-forecasting.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/KetchupJL/solana-qrf-interval-forecasting/issues"
+  },
+  "homepage": "https://github.com/KetchupJL/solana-qrf-interval-forecasting#readme",
+  "dependencies": {
+    "@solana-tracker/data-api": "^0.0.3",
+    "@solana/web3.js": "^1.98.2",
+    "axios": "^1.9.0",
+    "ccxt": "^4.4.85",
+    "fs-extra": "^11.3.0",
+    "graphql-request": "^7.1.2",
+    "node-fetch": "^2.7.0",
+    "pandas-js": "^0.2.4",
+    "parquetjs-lite": "^0.8.7",
+    "retry": "^0.13.1",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^22.15.21",
+    "@types/node-fetch": "^2.6.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
