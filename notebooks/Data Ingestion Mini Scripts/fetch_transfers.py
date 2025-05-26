@@ -1,8 +1,8 @@
 import os, time, pandas as pd, requests
 
-API_KEY = "aa77f73b-2247-43df-be03-b5e0dd8fb223"
 MINT    = "<your-mint>"
 BASE    = "https://api.helius.dev/v0/token/transfers"
+API_KEY     = os.getenv('HELIUS_API_KEY')
 
 def fetch_transfers(mint, start_iso, end_iso):
     url    = f"{BASE}/{mint}"
