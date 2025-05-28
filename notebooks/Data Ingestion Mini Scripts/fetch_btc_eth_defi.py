@@ -15,6 +15,9 @@ Splits price requests into ≤90-day chunks to avoid daily-only data.
 import time
 import requests
 import pandas as pd
+import os
+
+os.makedirs("data", exist_ok=True)
 
 # ── Config ─────────────────────────────────────────────────────────
 COINGECKO    = "https://api.coingecko.com/api/v3"
@@ -118,7 +121,7 @@ def main():
     cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=WINDOW_DAYS)
     out = out[out['timestamp'] >= cutoff].reset_index(drop=True)
 
-    out.to_csv('defi_tvl.csv', index=False)
+    out.to_csv('data/defi_tvl.csv', index=False)
     print(f"Saved defi_tvl.csv with {len(out)} rows")
     print(out.head(), "...", out.tail(), sep="")
 

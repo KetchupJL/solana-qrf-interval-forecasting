@@ -3,6 +3,9 @@
 
 # fetch_sol_price.py (fixed)
 import time, requests, pandas as pd
+import os
+
+os.makedirs("data", exist_ok=True)
 
 COINGECKO  = "https://api.coingecko.com/api/v3"
 CHUNK_SEC   = 30 * 24 * 3600   # 30-day slices
@@ -42,5 +45,5 @@ if __name__=="__main__":
     ohlc  = df['price_usd'].resample('12h').ohlc()
     vol   = df['price_usd'].resample('12h').sum()
     ohlc['volume']=vol
-    ohlc.to_csv("sol_price.csv")
+    ohlc.to_csv("data/sol_price.csv")
     print(ohlc.head(), "\n…", ohlc.tail())

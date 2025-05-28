@@ -8,7 +8,9 @@ Handles varied JSON structures, cleans NaNs, forward-fills missing TVL, and trim
 
 import requests
 import pandas as pd
+import os
 
+os.makedirs("data", exist_ok=True)
 # ── Configuration ─────────────────────────────────────────────
 TVL_URL     = "https://api.llama.fi/charts/solana"
 BIN_FREQ    = '12h'
@@ -78,9 +80,9 @@ def main():
     out = out[out['timestamp'] >= cutoff - pd.Timedelta(days=WINDOW_DAYS)].reset_index(drop=True)
 
     # Save
-    out.to_csv('tvl.csv', index=False)
     print(f"Saved tvl.csv with {len(out)} rows (last {WINDOW_DAYS} days)")
     print(out.head(), "\n…\n", out.tail())
+    out.to_csv('data/tvl.csv', index=False)
 
 if __name__ == '__main__':
     main()
