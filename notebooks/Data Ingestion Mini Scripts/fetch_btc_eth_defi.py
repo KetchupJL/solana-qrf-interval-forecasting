@@ -5,11 +5,11 @@
 Backfill 6-month history of BTC & ETH 12h OHLC and global DeFi TVL change.
 
 Outputs:
-  - btc_eth_price.csv : timestamp, btc_open, btc_high, btc_low, btc_close,
-                        eth_open, eth_high, eth_low, eth_close
-  - defi_tvl.csv      : timestamp, defi_tvl_usd, defi_tvl_change_12h
+  - data/btc_eth_price.csv : timestamp, btc_open, btc_high, btc_low, btc_close,
+                              eth_open, eth_high, eth_low, eth_close
+  - data/defi_tvl.csv      : timestamp, defi_tvl_usd, defi_tvl_change_12h
 
-Uses CoinGecko public API (no key) and DefiLlama `/charts/{chain}` for global DeFi.
+Uses CoinGecko public API (no key) and DefiLlama `/charts` for global DeFi.
 Splits price requests into ≤90-day chunks to avoid daily-only data.
 """
 import time
@@ -17,11 +17,12 @@ import requests
 import pandas as pd
 import os
 
+# Ensure data directory exists
 os.makedirs("data", exist_ok=True)
 
 # ── Config ─────────────────────────────────────────────────────────
 COINGECKO    = "https://api.coingecko.com/api/v3"
-DEFI_CHART   = "https://api.llama.fi/charts/defi"
+DEFI_CHART   = "https://api.llama.fi/charts"
 BIN_FREQ     = '12h'
 WINDOW_DAYS  = 180  # six months
 CHUNK_DAYS   = 90   # max range for finer-than-daily granularity
@@ -56,7 +57,6 @@ def fetch_price_range(coin_id, vs_currency, start, end):
         cur = to_ts
         time.sleep(1)
 
-    # build DataFrame, drop duplicates
     df = pd.DataFrame(all_records, columns=['ms','price_usd'])
     df = df.drop_duplicates(subset=['ms']).dropna()
     df['timestamp'] = pd.to_datetime(df['ms'], unit='ms', errors='coerce')
@@ -83,8 +83,9 @@ def main():
         eth_ohlc.add_prefix('eth_')
     ], axis=1)
     df_price.dropna(how='all', inplace=True)
-    df_price.to_csv('btc_eth_price.csv')
-    print(f"Saved btc_eth_price.csv with {len(df_price)} rows")
+    output_price_path = 'data/btc_eth_price.csv'
+    df_price.to_csv(output_price_path)
+    print(f"Saved {output_price_path} with {len(df_price)} rows")
 
     # 2) Global DeFi TVL by summing all chains
     print("Fetching global DeFi TVL by summing all chains (/charts)...")
@@ -92,7 +93,6 @@ def main():
     r.raise_for_status()
     charts = r.json()
 
-    # Accumulate TVL across all chains per timestamp
     sum_map = {}
     for entry in charts:
         tvl_list = entry.get('tvl', [])
@@ -101,7 +101,6 @@ def main():
                 continue
             sum_map[ms] = sum_map.get(ms, 0.0) + tvl
 
-    # Build DataFrame
     df_tvl = pd.DataFrame(list(sum_map.items()), columns=['ms','defi_tvl_usd'])
     df_tvl['timestamp'] = pd.to_datetime(pd.to_numeric(df_tvl['ms'], errors='coerce'), unit='ms', errors='coerce')
     df_tvl = df_tvl.dropna(subset=['timestamp']).set_index('timestamp').sort_index()
@@ -109,7 +108,6 @@ def main():
         print("Error: no valid DefiLlama /charts data after parsing.")
         return
 
-    # Resample, forward-fill, pct change
     defi_12h = df_tvl['defi_tvl_usd'].resample(BIN_FREQ).last().ffill()
     defi_change = defi_12h.pct_change().fillna(0)
     out = pd.DataFrame({
@@ -117,14 +115,13 @@ def main():
         'defi_tvl_usd':         defi_12h.values,
         'defi_tvl_change_12h':  defi_change.values
     })
-    # Trim to last WINDOW_DAYS
+
     cutoff = pd.Timestamp.utcnow().tz_localize(None) - pd.Timedelta(days=WINDOW_DAYS)
     out = out[out['timestamp'] >= cutoff].reset_index(drop=True)
 
-    out.to_csv('data/defi_tvl.csv', index=False)
-    print(f"Saved defi_tvl.csv with {len(out)} rows")
-    print(out.head(), "...", out.tail(), sep="")
+    output_tvl_path = 'data/defi_tvl.csv'
+    out.to_csv(output_tvl_path, index=False)
+    print(f"Saved {output_tvl_path} with {len(out)} rows")
 
 if __name__ == '__main__':
-    main()
     main()
