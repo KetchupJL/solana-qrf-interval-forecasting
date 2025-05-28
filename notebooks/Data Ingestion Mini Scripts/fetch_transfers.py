@@ -1,22 +1,29 @@
-import os, time, pandas as pd, requests
+import time, requests, pandas as pd
 
-MINT    = "<your-mint>"
-BASE    = "https://api.helius.dev/v0/token/transfers"
-API_KEY     = os.getenv('HELIUS_API_KEY')
+API_KEY = "aa77f73b-2247-43df-be03-b5e0dd8fb223"
+MINT    = "<YOUR_TOKEN_MINT>"
+BIN_SEC = 12 * 3600  # 12 h
 
-def fetch_transfers(mint, start_iso, end_iso):
-    url    = f"{BASE}/{mint}"
-    params = {"api-key": API_KEY, "startTime":start_iso, "endTime":end_iso}
-    resp   = requests.get(url, params=params, timeout=30)
-    resp.raise_for_status()
-    return resp.json()  # list of {from,to,timestamp,...}
+def fetch_all(mint, start, end):
+    url = f"https://api.helius.dev/v0/token/transfers/{mint}"
+    params = {
+      "api-key": API_KEY,
+      "startTime":pd.to_datetime(start, unit='s').isoformat(),
+      "endTime":pd.to_datetime(end, unit='s').isoformat()
+    }
+    r = requests.get(url, params=params, timeout=30)
+    r.raise_for_status()
+    return r.json()
 
-def aggregate(transfers, bin_edges):
+def aggregate(transfers, start, end):
     df = pd.DataFrame(transfers)
     df['ts'] = pd.to_datetime(df['timestamp'], unit='s')
     df.set_index('ts', inplace=True)
+    bins = pd.date_range(start=pd.to_datetime(start, unit='s'),
+                         end=pd.to_datetime(end, unit='s'),
+                         freq='12h')
     out = []
-    for lo, hi in zip(bin_edges[:-1], bin_edges[1:]):
+    for lo,hi in zip(bins[:-1], bins[1:]):
         slice = df[lo:hi]
         out.append({
           "timestamp": lo,
@@ -26,10 +33,10 @@ def aggregate(transfers, bin_edges):
     return pd.DataFrame(out)
 
 if __name__=="__main__":
-    # build 12h bins over 6mo
-    now = pd.Timestamp.utcnow().floor('12h')
-    bins = pd.date_range(now - pd.Timedelta(days=180), now, freq='12h')
-    transfers = fetch_transfers(MINT, bins[0].isoformat(), bins[-1].isoformat())
-    agg = aggregate(transfers, bins)
-    agg.to_csv("transfers.csv", index=False)
-    print(agg.head())
+    import pandas as pd, time
+    now   = int(time.time())
+    start = now - 180*24*3600
+    transfers = fetch_all(MINT, start, now)
+    df = aggregate(transfers, start, now)
+    df.to_csv("transfers.csv", index=False)
+    print(df.head(), "\n…", df.tail())
