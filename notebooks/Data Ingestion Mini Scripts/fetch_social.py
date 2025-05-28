@@ -1,28 +1,29 @@
-import os, time, pandas as pd, requests
+import time, requests, pandas as pd
 
-API_KEY = os.getenv("LUNARCRUSH_KEY")
-SYMBOL  = "FART"  # or map from mint→symbol
-BASE    = "https://api.lunarcrush.com/v2"
+API_KEY = "<YOUR_LUNARCRUSH_KEY>"
+SYMBOL  = "<TOKEN_SYMBOL_OR_COMMA_LIST>"
+INTERVAL= "12h"
+NOW     = int(time.time())
+START   = NOW - 180*24*3600
 
-def fetch_social(symbol, start_unix, end_unix):
-    url = f"{BASE}?data=assets&key={API_KEY}"
+def fetch_social(sym, start, end):
+    url = "https://api.lunarcrush.com/v2"
     params = {
-      "symbol_list": symbol,
-      "interval": "12h",
-      "start": start_unix,
-      "end": end_unix
+      "data":"assets",
+      "key":API_KEY,
+      "symbol_list":sym,
+      "start":start,
+      "end":end,
+      "interval":INTERVAL
     }
     r = requests.get(url, params=params, timeout=30)
     r.raise_for_status()
-    return r.json()['data']
+    return r.json().get('data',[])
 
 if __name__=="__main__":
-    now = int(time.time())
-    start = now - 180*24*3600
-    data = fetch_social(SYMBOL, start, now)
-    df = pd.DataFrame(data)[[
-      'time','social_volume','sentiment_score'
-    ]]
-    df['timestamp'] = pd.to_datetime(df['time'], unit='s')
+    data = fetch_social(SYMBOL, START, NOW)
+    df   = pd.DataFrame(data)
+    df['timestamp'] = pd.to_datetime(df['time'],unit='s')
+    df = df[['timestamp','social_volume','sentiment_score']]
     df.to_csv("social.csv", index=False)
-    print(df.head())
+    print(df.head(), "\n…", df.tail())
