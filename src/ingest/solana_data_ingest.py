@@ -1,4 +1,3 @@
-
 # .\venv\Scripts\Activate.ps1
 # python .\src\ingest\solana_data_ingest.py
 
@@ -148,18 +147,28 @@ def main():
             print(f"  ⚠ No price for {name}, skipping")
             continue
         df_12h = resample_12h(df_price)
+
         # holders (merge preloaded holders.csv)
         df_h = holders_df[holders_df['token_mint'] == mint][['timestamp','holder_count']]
+
+        # ── BEGIN FIX ────────────────────────────────────────────────────
+        # Make `df_h['timestamp']` timezone‐naive so it matches df_12h:
+        df_h['timestamp'] = df_h['timestamp'].dt.tz_localize(None)
+        # ──  END FIX  ────────────────────────────────────────────────────
+
         # merge
         df = pd.merge(df_12h, df_h, on='timestamp', how='left')
         df['token_mint'], df['token_name'] = mint, name
+
         # write SQLite
         df.to_sql('ohlcv_12h', conn, if_exists='append', index=False)
+
         # per-token CSV
         out_csv = TOKENS_DIR / f"{name}_{mint}_12h.csv"
         df.to_csv(out_csv, index=False)
         if USE_PARQUET:
             parquet_buf.append(df)
+
         print(f"  ✅ {len(df)} rows for {name}")
         time.sleep(DELAY_TOKEN)
 
