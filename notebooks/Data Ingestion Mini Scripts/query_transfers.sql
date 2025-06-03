@@ -1,4 +1,4 @@
--- 12 h SPL‐token transfer stats for a given month (e.g. June 2025) on BigQuery
+-- 12 h SPL‐token transfer stats for the last 6 months
 SELECT
   mint AS token_mint_address,
 
@@ -16,8 +16,11 @@ FROM
   `bigquery-public-data.crypto_solana_mainnet_us.Token Transfers`
 
 WHERE
-  -- only June 2025 transfers
-  TIMESTAMP_TRUNC(block_timestamp, MONTH) = TIMESTAMP("2025-06-01")
+  -- only transfers in the last 180 days (≈6 months)
+  block_timestamp
+    BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
+        AND CURRENT_TIMESTAMP()
+
   AND LOWER(mint) IN (
     '9bb6nfecjbctnnlfko2fqvqbq8hhm13kcyycdqbgpump',
     '4k3dyjzvzp8emzwuxbbcjevwskkk59s5icnly3qrkx6r',
@@ -30,7 +33,7 @@ WHERE
     '2qehjdldlbubgryvsxhc5d6udwaivnfzgan56p1tpump',
     'ed5nyywezpppiwimp8vym7sd7td3lat3q3grtwhzpjby',
     '63lfdmnb3mq8mw9mtz2to9bea2m71kzuugq5tijxcqj9',
-    'ukhh6c7mmyiwcf1b9pnwe25tspkddt3h5pqzgz74j82',
+    'ukhh6c7mmyiwcf1b9pnwe25tspkddt3h5pqsqzgz74j82',
     '5z3eqyqo9hices3r84rcdmu2n7anpdmxrhdk8pswmrrc',
     'a8c3xuqscfmylrte3vmtqraq8kgmasius9afnanwpump',
     'el5fuxj2j4ciqsmw85k5fg9dvuqjjuobhoqbi2kpump',

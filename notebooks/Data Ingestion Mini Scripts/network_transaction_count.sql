@@ -9,7 +9,7 @@ SELECT
   COUNT(*) AS tx_count
 
 FROM
-  `bigquery-public-data.crypto_solana_mainnet_us.transactions`
+  `bigquery-public-data.crypto_solana_mainnet_us.Transactions`
 WHERE
   block_timestamp 
     BETWEEN TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY) 
