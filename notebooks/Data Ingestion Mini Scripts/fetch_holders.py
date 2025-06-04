@@ -9,7 +9,10 @@ uses SolanaTracker’s /holders/chart/{mint} endpoint to fetch counts,
 and writes out data/holders.csv:
   timestamp, token_mint, holder_count
 
-Timestamps are formatted as ISO strings (UTC).
+Timestamps are formatted as ISO strings (UTC), but we shift them by +1 hour
+so that “11:00” → “12:00” and “23:00” → “00:00 (next day)”.
+
+We also extend the lookback by 2 days (i.e. subtract an extra 48 hours from start_ts).
 """
 
 import time
@@ -84,7 +87,8 @@ def main():
 
     mints = load_mints(TOKENS_CSV)
     now_ts = int(time.time())
-    start_ts = now_ts - WINDOW_DAYS*24*3600
+    # subtract WINDOW_DAYS plus extra 2 days (48 hours) for a full 182-day lookback
+    start_ts = now_ts - (WINDOW_DAYS * 24 * 3600) - (2 * 24 * 3600)
 
     headers = {"x-api-key": API_KEY}
     params = {"type": INTERVAL, "time_from": start_ts, "time_to": now_ts}
@@ -95,9 +99,11 @@ def main():
         data = fetch_json(HOLDERS_EP.format(mint=mint), params, headers)
         if data and "holders" in data:
             for entry in data["holders"]:
-                # convert to ISO8601 UTC string
+                # convert to ISO8601 UTC string, then shift by +1 hour
                 ts = pd.to_datetime(entry["time"], unit='s', utc=True)
-                iso_ts = ts.strftime('%Y-%m-%dT%H:%M:%SZ')
+                ts_shifted = ts + pd.Timedelta(hours=1)
+                # reformat with zeroed minutes/seconds (they should already be :00:00 after shift)
+                iso_ts = ts_shifted.strftime('%Y-%m-%dT%H:%M:%SZ')
                 rows.append({
                     "timestamp":    iso_ts,
                     "token_mint":   mint,
