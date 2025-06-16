@@ -12,3 +12,4 @@ solana>=0.27           # solana-py RPC client
 
 # (optional) env-var loader
 python-dotenv>=1.0
+statsmodels>=0.14
