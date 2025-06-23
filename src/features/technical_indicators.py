@@ -3,15 +3,33 @@ import numpy as np
 
 
 def compute_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute a suite of technical indicators.
+"""Compute a suite of technical indicators.
 
-    Added columns include common momentum and volatility measures such as the
-    Stochastic Oscillator, Williams %R, MACD and its signal line, Price Rate of
-    Change, short-horizon momentum and volatility metrics.  Additional trend
-    strength and volume features like Bollinger %b, Bollinger bandwidth, ADX,
-    CCI and On-Balance Volume are also provided along with network activity
-    growth metrics.
-    """
+This helper generates a range of indicators used in the forecasting
+notebooks.  The following columns are added (when the required inputs are
+present):
+
+* ``stoch_k`` – Stochastic Oscillator %K calculated from 14‑period highs/lows.
+* ``williams_r`` – Williams %R using the same 14‑period window.
+* ``macd`` / ``macd_signal`` – 12–26 EMA difference and its 9‑period signal
+  line.
+* ``proc`` – price rate of change.
+* ``bollinger_b`` / ``bollinger_bw`` – Bollinger %b and band width from a
+  20‑period moving average.
+* ``adx`` – Average Directional Index measuring trend strength.
+* ``cci`` – Commodity Channel Index.
+* ``obv`` – On‑Balance Volume.
+* ``vol_zscore_14`` – volume Z‑score over a 14‑bar lookback.
+* ``momentum_3bar`` / ``momentum_6bar`` – short‑term returns.
+* ``vol_std_3bar`` / ``vol_std_7bar`` – realised volatility of log returns.
+* ``holder_growth_7d`` / ``new_addr_growth_7d`` – one‑week growth in holders
+  and new addresses.
+* ``tvl_change_7d`` – weekly percentage change in TVL.
+
+The function is tolerant of slightly different input column names (e.g.
+``token_close_usd`` vs ``close_usd``) and operates independently on each token
+in the DataFrame.
+"""
     df = df.copy()
 
     # Ensure timestamp sorted within each token
