@@ -9,3 +9,4 @@ solana>=0.27           # solana-py RPC client
 python-dotenv>=1.0
 
 lightgbm>=3.3
+statsmodels>=0.14.4
