@@ -10,7 +10,7 @@ pyarrow
 scikit-learn==1.3.2
 lightgbm==3.3.5      # quantile trees
 statsmodels==0.14.0  # linear QR
-scikit-garden==0.1.4 # quantile RF
+scipy>=1.5,<1.12
 optuna==3.6.0        # HPO
 shap==0.45.0         # explainability
 joblib
