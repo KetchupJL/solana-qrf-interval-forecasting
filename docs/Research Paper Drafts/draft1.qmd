@@ -1,0 +1,17 @@
+---
+format: 
+  pdf:
+    documentclass: article
+    toc: true
+    include-before-body: cover.tex
+    number-sections: true
+    keep-tex: true
+    latex-engine: xelatex
+fontsize: 11pt
+mainfont: Times New Roman
+geometry: margin=2.5cm
+editor: visual
+citation: true
+csl: harvard.csl
+bibliography: references.bib
+---
