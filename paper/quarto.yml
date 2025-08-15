@@ -1,0 +1,31 @@
+project:
+  type: book    # produces a single PDF by default; can switch to article if needed
+  output-dir: _output
+
+book:
+  title: "Interval Forecasting of Cryptocurrency Returns using Quantile Regression Forests: An Application to the Solana Ecosystem"
+  author: "James Lewis"
+  chapters:
+    - paper.qmd
+    - appendices/appendix_methods.qmd
+    - appendices/appendix_extra_results.qmd
+
+format:
+  pdf:
+    documentclass: article
+    toc: true
+    number-sections: true
+    geometry: [margin=1in]
+    fig-cap-location: bottom
+    tbl-cap-location: top
+    df-print: default
+    link-citations: true
+
+bibliography: references.bib
+csl: csl/apa.csl   # replace with your department’s required CSL
+
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: false      # set true only if you add live chunks and want caching
