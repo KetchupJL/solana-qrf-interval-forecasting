@@ -1,0 +1,111 @@
+---
+title: "Interval Forecasting of Cryptocurrency Returns using Quantile Regression Forests: An Application to the Solana Ecosystem"
+author: James Lewis
+date: today
+format: pdf
+keywords: [quantile regression forests, conformal prediction, Solana, interval forecasting]
+---
+
+# Abstract
+
+
+# 1. Introduction
+
+Problem & motivation in DeFi.
+
+Contribution overview and research questions.
+
+Summary of results (one paragraph) and paper roadmap.
+
+
+# 2. Literature Review
+
+Quantile regression & interval forecasting.
+
+Tree ensembles for quantiles (QRF vs boosting).
+
+Conformal prediction & calibration.
+
+Crypto return forecasting/tail risk.
+
+
+# 3. Data & Features
+
+Datasets (12‑h OHLCV, on‑chain, market context). Time span, token filters.
+
+Preprocessing: alignment, imputation, winsorization, flags.
+
+Engineered features (momentum, volatility, liquidity, on‑chain, cross‑asset).
+
+Add a tidy table of variables here or place it in Appendix A if long.
+
+
+# 4. Methods
+
+Targets: 72‑h forward return; overlapping considerations.
+
+Baselines: Linear Quantile Regression; LightGBM + residual bootstrap.
+
+Core Model: Quantile Regression Forests.
+
+Calibration: split conformal (CQR) with rolling calibration window.
+
+Validation: rolling‑window CV (train 120 bars, test 30 bars), metrics (pinball, coverage, width), DM tests.
+
+
+# 5. Results
+
+## 5.1 Baselines
+
+Summarise LQR and LightGBM performance; show tables/plots.
+
+# 5.2 QRF Performance
+
+Pinball per τ ∈ {0.05, 0.25, 0.50, 0.75, 0.95}.
+
+Interval coverage vs nominal (50% and 90% intervals).
+
+Widths and sharpness.
+
+## 5.3 Statistical Comparison
+
+DM tests vs. baselines; highlight significant improvements.
+
+## 5.4 Calibration Diagnostics
+
+Quantile calibration plot; coverage curves; reliability diagrams.
+
+## 5.5 Ablations & Interpretability
+
+Feature importance (permutation or built‑in); top‑k retrain.
+
+Brief SHAP interpretation for median and tails (optional figure).
+
+
+# 6. Discussion
+
+What the results imply for interval forecasting on Solana.
+
+When QRF excels vs. when boosting might be sharper; limits and regimes.
+
+Practicality for risk‑adjusted sizing and tail‑risk control.
+
+
+# 7. Limitations & Ethical Considerations
+
+Data gaps, survivorship bias, regime shifts, backtest caveats.
+
+Responsible use of models in markets.
+
+# 8. Conclusion
+
+Answer research questions; summarise improvements and future work.
+
+## References
+
+## Appendices
+
+A: Full feature definitions & equations.
+
+B: Extended tables/plots, hyperparameters, and environment details.
+
