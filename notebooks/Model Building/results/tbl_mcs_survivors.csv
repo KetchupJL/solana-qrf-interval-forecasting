@@ -1,0 +1,8 @@
+tau,survivors
+0.05,insufficient data
+0.1,QRF
+0.25,QRF
+0.5,QRF
+0.75,QRF
+0.9,"QRF,LQR,LightGBM"
+0.95,"QRF,LQR"
