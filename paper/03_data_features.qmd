@@ -1,0 +1,30 @@
+# Data and feature engineering
+
+## Universe and period
+- Tokens (≥$50m mcap; ≥3 months listed), 12-h bars; target `return_72h`.
+
+## Cleaning, alignment, imputation
+- Timestamp alignment; missing bin handling; imputation masks.
+
+## Feature set
+- **Momentum** (logret_12h/36h, RSI/PROC/Stoch).
+- **Volatility** (realised vol, ATR, Parkinson).
+- **Liquidity/microstructure** (spread, depth, OBV, price_volume).
+- **On-chain** (Δ wallets, tx counts).
+- **Cross-asset** (SOL, ETH).
+
+## EDA highlights
+- Return skew/heavy tails; regime markers; missingness summary.
+
+::: {.content-visible when-format="html"}
+```{python}
+#| label: fig:missingness
+#| fig-cap: "Token-level missingness and imputation intensity (12-h bins)."
+# (Load your saved figure from figures/raw or generate quickly here)
+
+# Optionally render a compact feature dictionary table
+#| label: tbl:feature-dict
+#| tbl-cap: "Summary of engineered features."
+# df_features_dict.head(20)
+```
+:::

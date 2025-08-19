@@ -1,0 +1,7 @@
+tau,QRF_vs_LQR_win,QRF_vs_LQR_draw,QRF_vs_LQR_loss,QRF_vs_LGBM_win,QRF_vs_LGBM_draw,QRF_vs_LGBM_loss
+0.1,6,13,0,10,9,0
+0.25,7,12,0,12,7,0
+0.5,5,14,0,7,12,0
+0.75,6,13,0,5,14,0
+0.9,5,14,0,5,14,0
+0.95,4,15,0,16,3,0

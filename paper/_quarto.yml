@@ -1,0 +1,43 @@
+project:
+  type: book 
+  output-dir: _output
+
+book:
+  title: "Interval Forecasting of Cryptocurrency Returns using Quantile Regression Forests: An Application to the Solana Ecosystem"
+  author: "James Lewis"
+  chapters:
+    - index.qmd
+    - 01_intro.qmd
+    - 02_literature.qmd
+    - 03_data_features.qmd
+    - 04_methods.qmd
+    - 05_results.qmd
+    - 06_trading.qmd
+    - 07_robustness.qmd
+    - 08_discussion.qmd
+    - 09_conclusion.qmd
+    - A1_data_appendix.qmd
+    - A2_models_appendix.qmd
+    - A3_extra_figs.qmd 
+
+format:
+  pdf:
+    documentclass: scrreprt
+    pdf-engine: xelatex
+    toc: true
+    papersize: a4
+    number-sections: true
+    geometry: [margin=1in]
+    fig-cap-location: bottom
+    tbl-cap-location: top
+    df-print: default
+    link-citations: true
+
+bibliography: references.bib
+csl: csl/harvard.csl
+
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: false      # set true only if you add live chunks and want caching

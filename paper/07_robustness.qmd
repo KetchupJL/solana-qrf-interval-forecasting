@@ -1,0 +1,19 @@
+
+# Robustness and ablations
+
+## Feature pruning & token filtering
+- Method: permutation importance per fold → stable set; drop tokens with heavy imputation.
+- Report deltas: pinball, coverage, width.
+
+```{python}
+#| label: tbl:prune-deltas
+#| tbl-cap: "Effect of feature pruning on pinball loss and coverage."
+# prune_delta_table
+#| label: fig:sensitivity-grid
+#| fig-cap: "Sensitivity of performance to window & half-life settings."
+# sensitivity_heatmaps()
+```
+
+Sensitivity analyses
+
+Train/cal/test window grid; half-life grid; calibration variant.

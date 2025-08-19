@@ -1,0 +1,8 @@
+# Literature review
+
+- Interval / quantile forecasting and proper scoring.
+- QRF (non-parametric), LQR (parametric), boosting (LightGBM).
+- Conformal prediction / CQR; calibration in finite samples.
+- Crypto specifics: heavy tails, regime shifts, microstructure & on-chain features.
+
+> **Figure refs to add later:** reliability diagrams, schematic of interval scoring (optional).
