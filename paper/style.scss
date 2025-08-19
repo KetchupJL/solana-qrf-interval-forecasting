@@ -1,0 +1,9 @@
+/* headings & caption spacing */
+figure, table { margin: 1rem auto; }
+figcaption, .table-caption { font-size: .9rem; color: #5a5a5a; }
+
+/* monospace code sizing for snippets */
+code { font-size: .9rem; }
+
+/* simple table tweaks */
+.quarto-table { font-size: .95rem; }

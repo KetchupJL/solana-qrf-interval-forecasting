@@ -1,0 +1,15 @@
+# Trading application
+
+- Sizing rule from quantiles (describe formula).
+- Backtest design: entry timing, hold horizon, fees.
+- Results: Sharpe, Sortino, max DD vs baselines.
+
+```{python}
+#| label: tbl:bt-metrics
+#| tbl-cap: "Backtest metrics under risk-aware sizing."
+# bt_summary
+
+#| label: fig:equity-curves
+#| fig-cap: "Equity curves with risk-aware sizing; 95% CI via bootstrap."
+# equity_plot()
+```

@@ -1,0 +1,49 @@
+# Introduction
+
+## Motivation
+
+Risk management in crypto markets depends on the **distribution** of returns, not only their central tendency. Mid-cap Solana tokens exhibit heavy tails, skewness and regime dependence; under such conditions, symmetric error bands around point forecasts are misleading. Interval forecasts, expressed as conditional quantiles $q_\tau(x_t)$, are directly decision-relevant: they inform position sizing, stop placement and drawdown control, and they admit explicit calibration tests (e.g., whether an 80 % band achieves approximately 80 % empirical coverage). The appropriate scoring rule is the **pinball loss**,
+
+$$
+L_\tau\!\left(y,\hat q_\tau\right)\;=\;\bigl(\tau-\mathbf{1}\{y<\hat q_\tau\}\bigr)\,(y-\hat q_\tau),
+$$
+
+a strictly proper objective that rewards calibrated asymmetry rather than squared error \[add citation]. In this project, calibration and **sharpness** (narrow intervals at target coverage) are the primary goals.
+
+## Problem and scope
+
+The task is to forecast **72-hour forward log returns** for **mid-cap Solana tokens** on a **12-hour** cadence. Let
+
+$$
+\text{return\_72h}_t \;=\; \log P_{t+72\text{h}} - \log P_t,
+$$
+
+constructed as a six-step forward difference on the 12-hour grid; horizons therefore overlap. The modelling sample runs from **5 December 2024 00:00** to **3 June 2025 00:00**. The universe comprises **23** tokens satisfying market-capitalisation (≥ \$30 m) and listing-age (≥ 3 months) filters. Because several names are crude or meme-styled, tickers are not enumerated here; a complete list is given in *Methods* and the *Appendix* (with neutral labels where appropriate).
+
+All inputs are aligned on the 12-hour grid with preserved **imputation masks** to track data quality through rolling evaluation. Features span: momentum (1/3-bar returns, RSI/PROC/Stochastic oscillators), volatility (realised volatility, ATR, Bollinger bandwidth), liquidity and microstructure (bid-ask spread, top-of-book depth, volume), on-chain activity (changes in unique wallets/holders, transaction counts), and cross-asset context (SOL beta and level changes). Leakage is controlled via forward shifts and rolling windows; full definitions appear in *Data & Features*.
+
+## Approach and contributions
+
+We estimate a grid of conditional quantiles $\tau \in \{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$ using three model classes held to a **common feature set** and a **blocked rolling** design (*train 120 / calibrate 24 / test 6*, step 6) to mimic deployment and preserve temporal order.
+
+Our **core** model is **Quantile Regression Forests (QRF)**, a non-parametric ensemble that estimates conditional quantiles without distributional assumptions \[@meinshausen2006qrf]. Two baselines are included for a fair comparison: **Linear Quantile Regression (LQR)** \[add citation], providing a parametric benchmark, and **LightGBM in quantile mode** \[add citation]. Because empirical coverage matters operationally, we apply **split-conformal** calibration to LightGBM’s lower/upper quantiles to achieve nominal coverage under mild conditions \[add citation]. Additional calibration refinements (non-crossing adjustments, median bias correction, regime-aware offsets) are described and justified in *Methods*; they are not relied upon here.
+
+Evaluation focuses on **pinball loss** by $\tau$, **empirical coverage** for 80 % (q10–q90) and 90 % (q05–q95) bands, and **interval width**. To assess statistical significance, we use the **Diebold–Mariano** test on pinball-loss differentials \[add citation]. Preliminary results indicate that QRF improves tail accuracy relative to LightGBM; for example, at $\tau=0.10$ the mean pinball is **0.1245 (QRF)** versus **0.1571 (LightGBM)**—a **≈ 20.8 %** reduction (**provisional; to be confirmed**) (Table @tbl\:pinball-by-tau, \[PATH]).
+
+Taken together, the contribution is a calibrated, reproducible interval-forecasting pipeline for Solana mid-caps: a distribution-native method (QRF) compared against parametric and boosting baselines under a rigorous rolling protocol, with performance reported in terms that matter to trading—coverage and sharpness, not only central accuracy.
+
+## Research questions and hypotheses
+
+This study addresses four questions:
+
+1. **Predictive accuracy.** Do QRFs achieve **lower pinball loss** across $\tau$ than LQR and LightGBM under the rolling 120/24/6 protocol for 72-hour returns?
+   **Hypothesis:** Yes, especially at the tails, where non-linear, heteroskedastic structure dominates \[add citation].
+
+2. **Calibrated sharpness.** At nominal 80 %/90 % coverage, which method yields the **narrowest calibrated** intervals?
+   **Hypothesis:** LightGBM (post-conformal) tends to **over-cover** via wider bands; QRF attains **sharper tails** at target coverage; LQR **under-covers** away from the median \[add citation].
+
+3. **Robustness.** Are the conclusions stable to reasonable changes in rolling design and calibration choices (e.g., half-life, regime thresholds, non-crossing enforcement)?
+   **Hypothesis:** Qualitative conclusions are stable; non-crossing reduces pathological crossings with negligible loss penalty \[add citation].
+
+4. **Drivers of width and asymmetry.** Which feature groups widen or narrow intervals?
+   **Hypothesis:** Volatility and liquidity features dominate width; SOL cross-asset deltas shift the median; on-chain growth widens the right tail in influx regimes.

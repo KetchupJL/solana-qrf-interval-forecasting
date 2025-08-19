@@ -1,0 +1,20 @@
+
+# Methods
+
+## Rolling evaluation
+- Blocked per-token: train 120, cal 24, test 6; step 6.
+
+## Models
+### QRF (core)
+- quantile_forest.RandomForestQuantileRegressor; tuned (Optuna); decay weights; τ ∈ {0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95}
+- Calibration: residual quantile offsets by regime; median bias correction; isotonic non-crossing.
+
+### Baselines
+- LQR (statsmodels) same τ grid; non-crossing.
+- LightGBM quantile; conformal λ for 80% interval + interpolation.
+
+## Metrics & tests
+- Pinball loss; empirical coverage + width; Diebold–Mariano tests; optional WIS.
+
+## Key equations
+- Pinball loss, DM statistic (list equations here with labels eq:pinball, eq:dm).

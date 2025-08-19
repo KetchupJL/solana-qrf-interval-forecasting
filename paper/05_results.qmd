@@ -1,0 +1,30 @@
+# Results
+
+## Global comparison
+```{python}
+#| label: tbl:pinball-by-tau
+#| tbl-cap: "Mean pinball loss by quantile and model."
+# Load your summary CSV from notebooks and display nicely
+# pinball_summary_df
+
+#| label: fig:coverage-bars
+#| fig-cap: "Empirical coverage of 80% and 90% intervals by model."
+# coverage_plot()
+
+#| label: tbl:dm-tests
+#| tbl-cap: "Diebold–Mariano tests (QRF vs LQR/LGBM) per quantile."
+# dm_table
+
+
+#| label: fig:overlay-mew
+#| fig-cap: "Median and 80% intervals across models for token MEW."
+# overlay_plot('MEW')
+```
+
+## Visual overlays (representative tokens)
+
+Interpretation
+
+QRF sharp tails + good median; LightGBM wider (over-coverage); LQR under-coverage.
+
+Pointers to regime-conditional results (next chapter).
