@@ -1,6 +1,6 @@
 ---
-title: "Interval Forecasting of Cryptocurrency Returns using Quantile Regression Forests: An Application to the Solana Ecosystem"
-subtitle: Quantile Regression Forests vs Linear Quantile Regression and LightGBM
+title: "Abstract"
+subtitle: "Interval Forecasting of Cryptocurrency Returns using Quantile Regression Forests: An Application to the Solana Ecosystem"
 format: pdf
 ---
 
@@ -8,4 +8,3 @@ format: pdf
 **Abstract.** (200–300 words placeholder) Problem, data (12-h bars; 72-h target), models (QRF, LQR, LGBM), rolling CV (120/24/6), metrics (pinball, coverage, width), key results + trading relevance.
 :::
 
-**Keywords:** Quantile Regression Forests; Conformal prediction; Crypto markets; Forecast intervals.

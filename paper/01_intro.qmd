@@ -1,49 +1,55 @@
-# Introduction
+## **Introduction**
 
-## Motivation
+### **The Economic Challenge of Forecasting in Emerging Ecosystems**
 
-Risk management in crypto markets depends on the **distribution** of returns, not only their central tendency. Mid-cap Solana tokens exhibit heavy tails, skewness and regime dependence; under such conditions, symmetric error bands around point forecasts are misleading. Interval forecasts, expressed as conditional quantiles $q_\tau(x_t)$, are directly decision-relevant: they inform position sizing, stop placement and drawdown control, and they admit explicit calibration tests (e.g., whether an 80 % band achieves approximately 80 % empirical coverage). The appropriate scoring rule is the **pinball loss**,
+Extreme volatility and non-normal return distributions are defining characteristics of cryptocurrency markets, rendering traditional point forecasts insufficient for robust risk management [@Gkillas2018]. This challenge is particularly acute for mid-capitalisation tokens within emerging ecosystems like Solana. Unlike large-cap assets, these tokens are subject to rapid narrative shifts and idiosyncratic on-chain dynamics; yet unlike micro-caps, they are liquid enough to attract significant capital. For participants in this space, standard risk models often fail during periods of high network activity or ecosystem-wide events, creating a clear demand for forecasting tools that can dynamically price tail risk.
 
-$$
-L_\tau\!\left(y,\hat q_\tau\right)\;=\;\bigl(\tau-\mathbf{1}\{y<\hat q_\tau\}\bigr)\,(y-\hat q_\tau),
-$$
+This dissertation argues that the primary objective must shift from point prediction to **interval forecasting**. By generating calibrated prediction intervals through conditional quantiles, we can capture the asymmetry and tail risk inherent in these volatile assets. A well-calibrated lower quantile serves as a dynamic, forward-looking analogue to Value-at-Risk (VaR) [@Engle2004], while the upper quantile informs on potential upside, providing a comprehensive basis for sophisticated risk management and tactical decision-making.
 
-a strictly proper objective that rewards calibrated asymmetry rather than squared error \[add citation]. In this project, calibration and **sharpness** (narrow intervals at target coverage) are the primary goals.
+### **A Principled Approach: Quantile Regression**
 
-## Problem and scope
+To construct reliable prediction intervals, we adopt the framework of **quantile regression** [@Koenker1978]. This approach is formally grounded in the **pinball loss function**, a proper scoring rule that is uniquely minimised when the forecast matches the true conditional quantile of the distribution. For a target outcome $y$ and a forecast for the $\tau$-th quantile, $\hat{q}_{\tau}$, the loss is:
 
-The task is to forecast **72-hour forward log returns** for **mid-cap Solana tokens** on a **12-hour** cadence. Let
+$$L_{\tau}(y, \hat{q}_{\tau}) = (\tau - \mathbf{1}\{y < \hat{q}_{\tau}\})(y - \hat{q}_{\tau})$$
 
-$$
-\text{return\_72h}_t \;=\; \log P_{t+72\text{h}} - \log P_t,
-$$
+This allows models to be evaluated on two critical properties: **calibration** (does an 80% interval contain the outcome 80% of the time?) and **sharpness** (are the intervals as narrow as possible while maintaining calibration?) [@Gneiting2007]. These properties are paramount in crypto markets, where accurately quantifying both risk and opportunity is the basis of effective strategy.
 
-constructed as a six-step forward difference on the 12-hour grid; horizons therefore overlap. The modelling sample runs from **5 December 2024 00:00** to **3 June 2025 00:00**. The universe comprises **23** tokens satisfying market-capitalisation (≥ \$30 m) and listing-age (≥ 3 months) filters. Because several names are crude or meme-styled, tickers are not enumerated here; a complete list is given in *Methods* and the *Appendix* (with neutral labels where appropriate).
+### **The State of the Art and the Research Gap**
 
-All inputs are aligned on the 12-hour grid with preserved **imputation masks** to track data quality through rolling evaluation. Features span: momentum (1/3-bar returns, RSI/PROC/Stochastic oscillators), volatility (realised volatility, ATR, Bollinger bandwidth), liquidity and microstructure (bid-ask spread, top-of-book depth, volume), on-chain activity (changes in unique wallets/holders, transaction counts), and cross-asset context (SOL beta and level changes). Leakage is controlled via forward shifts and rolling windows; full definitions appear in *Data & Features*.
+The literature on cryptocurrency forecasting has largely bifurcated. One branch applies econometric models like GARCH, which excel at modelling volatility but are constrained by parametric assumptions [@Bollerslev1986]. The other employs machine learning, but predominantly for point forecasting of price or direction [@Mcnally2018]. While some studies have applied quantile regression to major crypto-assets [@Catania2019], they have typically relied on simpler linear models or have not fully leveraged the rich feature set available from on-chain data. Furthermore, the critical step of post-hoc calibration to ensure nominal coverage guarantees, especially for non-parametric methods, is often overlooked.
 
-## Approach and contributions
+This dissertation is designed to address these gaps by making three core contributions: it shifts the focus from point prediction to distributional accuracy; it applies a sophisticated non-parametric methodology to the under-researched domain of mid-cap altcoins; and it integrates a rich, multi-domain feature set that explicitly includes on-chain activity.
 
-We estimate a grid of conditional quantiles $\tau \in \{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$ using three model classes held to a **common feature set** and a **blocked rolling** design (*train 120 / calibrate 24 / test 6*, step 6) to mimic deployment and preserve temporal order.
+### **1.4 Problem Formulation: The Solana Ecosystem**
 
-Our **core** model is **Quantile Regression Forests (QRF)**, a non-parametric ensemble that estimates conditional quantiles without distributional assumptions \[@meinshausen2006qrf]. Two baselines are included for a fair comparison: **Linear Quantile Regression (LQR)** \[add citation], providing a parametric benchmark, and **LightGBM in quantile mode** \[add citation]. Because empirical coverage matters operationally, we apply **split-conformal** calibration to LightGBM’s lower/upper quantiles to achieve nominal coverage under mild conditions \[add citation]. Additional calibration refinements (non-crossing adjustments, median bias correction, regime-aware offsets) are described and justified in *Methods*; they are not relied upon here.
+This study focuses on forecasting **72-hour log-returns** for a universe of mid-cap tokens within the Solana ecosystem, using data aggregated in 12-hour intervals. The asset universe comprises tokens with a market capitalisation exceeding \\$30 million, ensuring a focus on liquid yet idiosyncratic assets. The forecasting model is built upon a feature set designed to capture the multi-faceted drivers of returns, spanning five domains: (i) **momentum**, (ii) **volatility**, (iii) **market microstructure**, (iv) **on-chain activity**, and (v) **cross-asset context**.
 
-Evaluation focuses on **pinball loss** by $\tau$, **empirical coverage** for 80 % (q10–q90) and 90 % (q05–q95) bands, and **interval width**. To assess statistical significance, we use the **Diebold–Mariano** test on pinball-loss differentials \[add citation]. Preliminary results indicate that QRF improves tail accuracy relative to LightGBM; for example, at $\tau=0.10$ the mean pinball is **0.1245 (QRF)** versus **0.1571 (LightGBM)**—a **≈ 20.8 %** reduction (**provisional; to be confirmed**) (Table @tbl\:pinball-by-tau, \[PATH]).
+### **Methodology and Contributions**
 
-Taken together, the contribution is a calibrated, reproducible interval-forecasting pipeline for Solana mid-caps: a distribution-native method (QRF) compared against parametric and boosting baselines under a rigorous rolling protocol, with performance reported in terms that matter to trading—coverage and sharpness, not only central accuracy.
+The central hypothesis is that the non-linear, interaction-heavy nature of this market demands a non-parametric approach. We propose an adapted **Quantile Regression Forests (QRF)** model [@Meinshausen2006]. QRF was selected as the primary model for several reasons. Firstly, its ensemble nature provides inherent robustness to the noisy predictors common in high-dimensional financial feature sets. Secondly, unlike gradient boosting, QRF's independent tree construction can be less prone to overfitting in non-stationary environments. Finally, its method of estimating quantiles from the full distribution of training samples in terminal nodes is a more direct and empirically stable approach than methods requiring separate models for each quantile. To tailor the model for financial time series, we incorporate several critical enhancements: **time-decay weighting** to prioritise recent data, **volatility regime offsets** to adapt to changing market conditions, and **isotonic regression** to enforce the theoretical non-crossing of quantiles.
 
-## Research questions and hypotheses
+We benchmark our adapted QRF against a parametric **Linear Quantile Regression (LQR)** and a powerful **LightGBM** model [@Ke2017] augmented with **conformal prediction** [@Romano2019]. Preliminary results suggest that the primary advantage of the adapted QRF framework lies in its superior ability to synthesise on-chain activity and market microstructure features to anticipate shifts in return distribution skewness—a dynamic that linear models fail to capture.
 
-This study addresses four questions:
+### **Scope and Delimitations**
 
-1. **Predictive accuracy.** Do QRFs achieve **lower pinball loss** across $\tau$ than LQR and LightGBM under the rolling 120/24/6 protocol for 72-hour returns?
-   **Hypothesis:** Yes, especially at the tails, where non-linear, heteroskedastic structure dominates \[add citation].
+This dissertation provides a rigorous methodological and empirical analysis of interval forecasting. It does not aim to develop a complete, production-ready trading system, which would require further considerations such as transaction costs, liquidity constraints, and execution latency. Furthermore, the feature set, while comprehensive, is confined to publicly available market and on-chain data, thereby excluding alternative data sources such as social media sentiment or developer activity metrics, which may also contain predictive information. The findings are specific to the mid-cap tokens within the Solana ecosystem during the observation period and may not be directly generalisable to other blockchains, market-cap tiers, or market regimes without further investigation and potential recalibration.
 
-2. **Calibrated sharpness.** At nominal 80 %/90 % coverage, which method yields the **narrowest calibrated** intervals?
-   **Hypothesis:** LightGBM (post-conformal) tends to **over-cover** via wider bands; QRF attains **sharper tails** at target coverage; LQR **under-covers** away from the median \[add citation].
+### **Research Question**
 
-3. **Robustness.** Are the conclusions stable to reasonable changes in rolling design and calibration choices (e.g., half-life, regime thresholds, non-crossing enforcement)?
-   **Hypothesis:** Qualitative conclusions are stable; non-crossing reduces pathological crossings with negligible loss penalty \[add citation].
+This framework motivates the central research question of this dissertation:
 
-4. **Drivers of width and asymmetry.** Which feature groups widen or narrow intervals?
-   **Hypothesis:** Volatility and liquidity features dominate width; SOL cross-asset deltas shift the median; on-chain growth widens the right tail in influx regimes.
+**Can an adapted Quantile Regression Forest model deliver sharper and better-calibrated prediction intervals for 72-hour returns of mid-cap Solana tokens compared to standard linear and gradient-boosted quantile regression baselines?**
+
+This overarching question is decomposed into four specific, testable hypotheses:
+
+1. Superior Accuracy: The proposed QRF model achieves a lower mean pinball loss across the quantile spectrum than both LQR and LightGBM with conformal prediction.
+
+2. Superior Calibration: The QRF model's empirical coverage rates for 80% and 90% intervals are closer to their nominal levels.
+
+3. Superior Sharpness: The QRF model produces narrower prediction intervals than the conformally-adjusted LightGBM model, without sacrificing calibration.
+
+4. Statistical Significance: The performance improvements offered by QRF are statistically significant as determined by formal tests on pinball loss differentials.
+
+### **Dissertation Outline**
+
+The remainder of this dissertation unfolds as follows. Chapter 2 establishes the theoretical context by reviewing the relevant literature. Chapter 3 details the data pipeline and feature engineering process, while Chapter 4 outlines the core methodology. The empirical analysis begins in Chapter 5 with the main comparative results, which are translated into a practical trading application in Chapter 6 and stress-tested for robustness in Chapter 7. Finally, Chapter 8 discusses the broader implications, leading to the conclusion in Chapter 9, which summarises the contributions and suggests avenues for future research.
