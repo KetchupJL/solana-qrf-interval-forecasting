@@ -42,11 +42,9 @@ Add a tidy table of variables here or place it in Appendix A if long.
 
 # 4. Methods
 
-Targets: 72‑h forward return; overlapping considerations.
-
 Baselines: Linear Quantile Regression; LightGBM + residual bootstrap.
 
-Core Model: Quantile Regression Forests.
+Core Model: Quantile Regression Forests + extras
 
 Calibration: split conformal (CQR) with rolling calibration window.
 

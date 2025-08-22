@@ -1,1 +1,0 @@
-full hyperparams per τ, Optuna spaces, training logs.
