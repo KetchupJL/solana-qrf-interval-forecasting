@@ -12,12 +12,14 @@ book:
     - 03_data_features.qmd
     - 04_methods.qmd
     - 05_results.qmd
-    - 08_discussion.qmd
-    - 09_conclusion.qmd
+    - 06_trading.qmd
+    - 07_discussion.qmd
+    - 08_conclusion.qmd
   appendices:  
     - appendices/A1_data_appendix.qmd
     - appendices/A2_models_appendix.qmd
     - appendices/A3_extra_figs.qmd 
+
 
 format:
   pdf:

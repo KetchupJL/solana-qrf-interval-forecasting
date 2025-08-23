@@ -1,0 +1,26 @@
+
+### Appendix Results — Plots and Tables {#app-r1}
+
+**Fig 5.1 — Reliability (global)** (@fig-reliability-global):
+  your “empirical hit-rate vs τ” plot with Wilson CIs.
+![**Reliability curves** (empirical hit-rate $\Pr\{y \le \hat q_\tau\}$ vs nominal τ) with Wilson 95% confidence bands.](figures/raw/fig-reliability-global.pdf){#fig-reliability-global fig-align="center" width="65%"}
+
+**Fig 5.2 — Width distributions** (@fig-reliability-global):
+![90% bands are wider (as expected) with a long right tail during volatile periods.](figures/raw/fig-width-distributions.pdf){#fig-reliability-global fig-align="center" width="65%"}
+
+**Fig 5.3 — Width distributions** (@fig-reliability-by-regime):
+![Quiet / Mid / Volatile](figures/raw/fig-reliability-by-regime.pdf){#fig-reliability-global fig-align="center" width="65%"}
+
+
+
+| regime   | w80_decile | coverage80 | n   |
+|:--------:|:----------:|:----------:|:---:|
+| mid      | 1          | 0.318      | 44  |
+| mid      | 5          | 0.793      | 111 |
+| mid      | 10         | 0.893      | 28  |
+| quiet    | 6          | 0.871      | 139 |
+| quiet    | 8          | 0.964      | 83  |
+| quiet    | 10         | 0.944      | 18  |
+| volatile | 1          | 0.182      | 22  |
+| volatile | 5          | 0.709      | 55  |
+| volatile | 10         | 0.821      | 280 |
