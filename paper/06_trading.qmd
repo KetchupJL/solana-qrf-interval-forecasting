@@ -65,7 +65,7 @@ and portfolio P\&L sums across tokens subject to the gross cap. No look-ahead: p
 
 **Equity curves.** The portfolio-level equity (72h step) highlights the economic behavior of the two policies:
 
-![Portfolio equity curves. Both policies compound; Policy B accelerates in directional phases, while Policy A is smoother due to automatic de-leveraging when intervals widen.](figures/results/fig-equity-curves.pdf){#fig-equity-portfolio fig-align="center" width="80%"}
+![Portfolio equity curves. Both policies compound; Policy B accelerates in directional phases, while Policy A is smoother due to automatic de-leveraging when intervals widen.](figures/raw/fig-equity-curves.pdf){#fig-equity-portfolio fig-align="center" width="80%"}
 
 * **Policy A** (risk-scaled) produces a **smoother NAV** with visibly smaller drawdowns during turbulence—consistent with its variance-aware denominator.
 * **Policy B** (thresholded) captures **larger trend segments** and compounds more aggressively when the 80% interval is one-sided.
@@ -89,7 +89,7 @@ Typical patterns we observe (see Table @tbl-backtest):
 
 **Cross-sectional heterogeneity.** Sharpe varies across names—unsurprising given token-specific microstructure and on-chain regimes:
 
-![Per-token Sharpe (top 20, QRF). Blue = Policy A (risk-scaled). Orange = Policy B (thresholded).](figures/results/fig-token-sharpe-qrf.pdf){#fig-token-sharpe fig-align="center" width="95%"}
+![Per-token Sharpe (top 20, QRF). Blue = Policy A (risk-scaled). Orange = Policy B (thresholded).](figures/raw/fig-token-sharpe-qrf.pdf){#fig-token-sharpe fig-align="center" width="95%"}
 
 Two robust patterns emerge:
 

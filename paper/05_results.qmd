@@ -204,7 +204,7 @@ These patterns are consistent with the per-token Diebold–Mariano tests and the
 
 **Fig. @fig-pinball-by-token** summarises the distribution of pinball loss across tokens for each model and quantile. It highlights where QRF gains are largest (typically higher-liquidity names) and where models tie.
 
-![Per-token pinball loss by model and quantile τ. Boxes summarise dispersion across tokens; dots mark token means.](figures/raw/fig-pinball-by-token.pdf){#fig-pinball-by-token fig-align="center" width="82%"}
+![Per-token pinball loss by model and quantile τ. Boxes summarise dispersion across tokens; black diamonds mark the cross-token mean for each model–τ; faint points show individual token means.](figures/raw/fig-pinball-by-token.pdf){#fig-pinball-by-token fig-align="center" width="82%"}
 
 #### Representative fan charts (token case studies)
 
@@ -212,13 +212,10 @@ To make the cross-section concrete, we show “fan” charts for three represent
 
 * **MLG** (high-volatility bursts): bands widen sharply into spikes yet retain coverage.
 * **AVA** (moderate volatility): intervals remain moderate; the conditional median tracks cyclical swings without over-smoothing.
-* **GIGA** (sustained improvement window): consistently narrow, calibrated bands.
 
 ![MLG: smoothed quantile curves (q05–q95) vs. realized 72h returns. Intervals widen into volatility spikes while calibration is retained.](figures/raw/fig_quantile_spaghetti_mlg.pdf){#fig-fan-mlg fig-align="center" width="96%"}
 
 ![AVA: smoothed quantile curves (q05–q95) vs. realized 72h returns. Bands are moderate with good median tracking.](figures/raw/fig_quantile_spaghetti_ava.pdf){#fig-fan-ava fig-align="center" width="96%"}
-
-![GIGA: smoothed quantile curves (q05–q95) vs. realized 72h returns. Narrow, calibrated bands illustrate strong token-level performance.](figures/raw/fig_quantile_spaghetti_giga.pdf){#fig-fan-giga fig-align="center" width="96%"}
 
 > *Optional robustness visual.* If space allows, include a three-model overlay for one token (QRF, LQR, LightGBM) to illustrate the sharpness–coverage trade-off: LightGBM’s intervals appear visibly wider; LQR’s intervals are narrower but miss tails.
 

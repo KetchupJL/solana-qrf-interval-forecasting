@@ -1,3 +1,7 @@
-# Conclusion
+## 7. Conclusion {#sec-conclusion}
 
-- Answers to research questions, contributions, limitations, future work.
+This dissertation evaluated whether an adapted Quantile Regression Forest (QRF) can produce sharper and better-calibrated 72-hour return intervals for mid-cap Solana tokens than linear and boosted baselines. Under a blocked rolling evaluation with identical features across models, the evidence supports an affirmative answer. QRF delivers lower pinball loss in the risk-relevant lower quantiles, near-nominal 90% coverage, and narrower intervals at like-for-like coverage than LightGBM; differences are statistically credible and economically meaningful in a risk-aware sizing application. 
+
+Methodologically, the combination of non-parametric forests with time-decay, regime-aware residual adjustments, isotonic non-crossing, and split-conformal widening yields stable coverage with widths that scale appropriately with volatility. Practically, calibrated intervals enable position sizing that de-leverages when uncertainty widens and scales when signals are directional, improving risk-adjusted performance over fixed-size baselines.
+
+Overall, distribution-aware forests with light, state-aware calibration emerge as a tractable and deployable approach for interval forecasting in volatile crypto markets, providing a stronger basis for decision-making than point forecasts alone.
