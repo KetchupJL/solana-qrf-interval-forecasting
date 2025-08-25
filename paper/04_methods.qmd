@@ -12,11 +12,6 @@ where $C_{i,t}$ denotes the 12-hour close. At quantile level $\tau\in(0,1)$, we 
 
 **Panel scope and pooling.** Models are trained **per token** (no cross-sectional pooling). Within each rolling window, token $i$’s model uses only its own history. The design matrix is the pruned **feature-set v1 (29 predictors)** defined in §3, including categorical dummies where applicable.
 
-**Leakage controls and preprocessing.** All predictors are strictly backward-looking and aligned to time $t$; rows without full look-back are dropped. Preprocessing is **model-specific**:
-— *LQR:* numeric features standardised (fit on Train only), categoricals one-hot.
-— *LightGBM / QRF:* numerics unscaled; categoricals passed natively / one-hot as supported.
-No further within-pipeline winsorisation or transformations are applied beyond the upstream log-return construction.
-
 **Rolling evaluation protocol.** For each token we use a blocked walk-forward design:
 
 $$
@@ -25,20 +20,19 @@ $$
 \text{Test}=6\text{ bars}\ (72\text{ h}),
 $$
 
-advanced by **step = 6 bars** so that tests are non-overlapping. Hyperparameters are tuned once in a global study and then **fixed**; LightGBM additionally uses early stopping on the calibration slice.
+advanced by **step = 6 bars** so that tests are non-overlapping.
 *PLACEHOLDER — Figure:* `(@fig-rolling)` Rolling scheme diagram (Train→Cal→Test, step = 6).
 
 **Calibration and non-crossing.** Base quantiles are made **monotone in $\tau$** via row-wise **isotonic rearrangement** (pool-adjacent-violators), then **central bands** are adjusted using **split-conformal prediction** (citations as above). Formal score definitions and the order-statistic inflation used for 80 % and 90 % bands are given in **Appendix M2** (see also listings `A-isotonic.py` and `A-conformal.py`).
 
 **Models and libraries.**
-— **LQR:** linear quantile regression via `statsmodels.QuantReg`.
-— **LightGBM:** gradient-boosted trees with quantile objective per $\tau$.
-— **QRF:** Quantile Regression Forests; one shared forest predicts all $\tau$.
+-  **LQR:** linear quantile regression via `statsmodels.QuantReg`.
+- **LightGBM:** gradient-boosted trees with quantile objective per $\tau$.
+- **QRF:** Quantile Regression Forests; one shared forest predicts all $\tau$.
 Full software and environment details are reported in **Appendix R1** (`@tbl-software`).
 
-**Evaluation and tests (overview).** We report **pinball loss** by $\tau$, **empirical coverage** and **average width** for 80 %/90 % bands, and **quantile reliability** curves. Pairwise comparisons use **Diebold–Mariano** tests on loss differentials with **Newey–West** HAC and **Harvey–Leybourne–Newbold** small-sample correction; formulas and code are provided in **Appendix M4** and listing `A-DM-HAC.py`.
 
-## 4.2 Linear Quantile Regression (Baseline) Model
+## Linear Quantile Regression (Baseline) Model
 
 For each $\tau\in\{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$ and token $i$, we fit an independent **Linear Quantile Regression** model that minimises the check (pinball) loss to estimate $\widehat q_\tau(x)$ (Koenker & Bassett, 1978; Koenker, 2005). The formal program is given in **Appendix @ref(app-l1-lqr)**.
 

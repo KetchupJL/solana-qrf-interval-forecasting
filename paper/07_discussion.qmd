@@ -1,14 +1,14 @@
-### 6. Discussion
+## 6. Discussion
 
-#### 6.1 What the evidence shows (against the hypotheses)
+### What the evidence shows (against the hypotheses)
 
 Across the blocked rolling evaluation, **QRF** delivers the **lowest pinball loss in the left tail** (τ ∈ {0.05, 0.10, 0.25}), is **competitive at the median**, and **tracks the upper tails closely** (Table @tbl-pinball-tau). This supports **H1 (Superior Accuracy)** in the region that matters most for downside risk control. On **calibration**, QRF’s **90% coverage is close to nominal** while **80% shows a small under-coverage** (Table @tbl-cov-width; Figure @fig-reliability-global), whereas **LightGBM over-covers** via wide bands and **LQR under-covers** materially. That pattern supports **H2 (Superior Calibration)** relative to LQR and a more balanced stance than LightGBM’s conservatism. For **sharpness**, QRF achieves **narrower intervals at comparable coverage** than LightGBM (Figure @fig-efficiency; cf. @fig-widths), supporting **H3 (Superior Sharpness)**. Finally, HAC-robust **Diebold–Mariano tests** and a **Model Confidence Set** confirm that the QRF advantage is statistically credible (Tables @tbl-dm-counts, @tbl-mcs), addressing **H4 (Statistical Significance)**.
 
-#### 6.2 Why QRF behaves this way (mechanism, not just metrics)
+### Why QRF behaves this way (mechanism, not just metrics)
 
 The performance profile aligns with the model’s design. **Non-parametric splits** let QRF adapt to heteroskedastic, non-linear interactions (e.g., volatility × liquidity × on-chain activity) without assuming a symmetric residual law. **Leafwise empirical distributions** return **direct conditional quantiles**, which is valuable when tails are heavy and asymmetric. **Time-decay weights** privilege recent observations in a drifting distribution; **regime-aware residual offsets** correct tail miscalibration in volatile clusters without bluntly widening quiet-regime bands. **Isotonic rearrangement** prevents quantile crossing, and **split-conformal** brings finite-sample coverage back toward nominal. The empirical signature—**coverage roughly equalised across regimes while widths expand in volatility**—is the expected outcome of this pipeline.
 
-#### 6.3 Where the baselines still help (and why)
+### Where the baselines still help (and why)
 
 Although QRF dominates in tail accuracy and efficiency, the baselines retain niche value. **LightGBM** with conformal adjustment is attractive if a **conservative risk posture** is required ex ante (e.g., screening for extreme downside), accepting **wider bands** for higher coverage. **LQR** remains informative at the **median** and for **interpretability** (linear coefficients), but its **systematic under-coverage** makes it unsuitable for tail risk without additional calibration. In operational settings, an ensemble that uses **QRF for tails** and **LQR/boosted medians at τ=0.50** could combine interpretability at the centre with robustness in the extremes.
 

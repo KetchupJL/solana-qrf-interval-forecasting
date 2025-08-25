@@ -45,7 +45,7 @@ Exploratory analysis confirms that the resulting target variable exhibits the ex
 | Maximum | 1.02 |
 **Table 3.1: Summary Statistics for the 72-hour Log Return Target Variable (Pooled Across All Tokens).**
 
-The heavy-tailed nature of the target is further illustrated in **Figure 3.1**, which plots the empirical distribution against a normal distribution with the same mean and variance. The substantially higher peak (leptokurtosis) and elongated tails of the empirical distribution provide clear visual evidence that a Gaussian assumption would be inappropriate and underscore the necessity of a quantile-based modelling approach.
+The heavy-tailed nature of the target is further illustrated in **Figure 3.1**, which plots the empirical distribution against a normal distribution with the same mean and variance. The substantially higher peak and elongated tails of the empirical distribution provide clear visual evidence that a Gaussian assumption would be inappropriate and underscore the necessity of a quantile-based modelling approach.
 
 ![Distribution of the 72-hour log return target variable, pooled across all tokens. The distribution exhibits a sharp peak and significantly heavier tails than a comparable normal distribution, justifying the use of quantile-based models.](figures/raw/fig-3-1.pdf){#fig-return-dist fig-align="center" width="65%"}
 
@@ -57,7 +57,7 @@ Finally, it is important to note that this construction results in an **overlapp
 
 ### Data Preprocessing and Cleaning
 
-Before any features could be engineered, the raw, multi-source panel dataset underwent a rigorous cleaning and preprocessing pipeline. This was a critical phase designed to handle the significant data quality challenges inherent in cryptocurrency markets, such as missing observations and inconsistent token histories, ensuring the final dataset was robust and suitable for modelling. The initial raw data contained approximately **18% missing values** in the core OHLCV columns alone, with some on-chain features like `holder_count` missing nearly 30% of their data (see Appendix **Table \@tbl:apx-missing-top10** for a full breakdown).
+Before any features could be engineered, the raw, multi-source panel dataset underwent a rigorous cleaning and preprocessing pipeline. This was a critical phase designed to handle the significant data quality challenges inherent in cryptocurrency markets, such as missing observations and inconsistent token histories, ensuring the final dataset was robust and suitable for modelling. The initial raw data contained approximately **18% missing values** in the core OHLCV columns alone, with some on-chain features like `holder_count` missing nearly 40% of their data (see Appendix **Table \@tbl:apx-missing-top10** for a full breakdown).
 
 The nature of this missingness was not uniform. As illustrated by the heatmap in **Figure 3.4**, the data gaps were highly structured. Some tokens (e.g., `MEW`, `ZEREBRO`) had clean data but only after a late start date, while others exhibited intermittent, patchy gaps throughout their history. This heterogeneity necessitated a multi-step strategy rather than a single, one-size-fits-all approach.
 

@@ -1,14 +1,12 @@
-## 6. Application: Risk-aware sizing with calibrated intervals
+## Application: Risk-aware sizing with calibrated intervals
 
 
 
-### 6.1 Rationale
+### Rationale
 
 The empirical sections showed that QRF delivers **near-nominal 90% coverage** with **tighter bands** than LightGBM at like-for-like coverage, and materially better **lower-tail pinball**. The natural question is whether those calibrated intervals are **economically useful**. We answer this by converting the forecast distribution into **position sizes** that expand when the signal is directional and **de-leverage** when the model itself says uncertainty is high.
 
----
-
-### 6.2 Sizing rules and constraints
+### Sizing rules and constraints
 
 Let $q_{\tau,t}$ denote the $\tau$-quantile forecast for the 72-hour log return from time $t$, and let $r_{t:t+72h}=\log P_{t+72h}-\log P_t$. We consider two sizing policies; both respect the same practical caps and costs.
 
@@ -51,7 +49,7 @@ and portfolio P\&L sums across tokens subject to the gross cap. No look-ahead: p
 
 ---
 
-### 6.3 Backtest design
+### Backtest design
 
 * **Universe and horizon.** Same Solana token set as in §3–§5, tradable on the 72h grid.
 * **Signal.** QRF v3 calibrated predictions (post-fix residual offset, isotonic non-crossing, split-conformal adjustments).
@@ -61,7 +59,7 @@ and portfolio P\&L sums across tokens subject to the gross cap. No look-ahead: p
 
 ---
 
-### 6.4 Portfolio results
+### Portfolio results
 
 **Equity curves.** The portfolio-level equity (72h step) highlights the economic behavior of the two policies:
 
@@ -85,7 +83,7 @@ Typical patterns we observe (see Table @tbl-backtest):
 * **Max drawdown.** Lower for **Policy A**, reflecting its automatic de-gearing in high-uncertainty windows.
 * **Turnover.** **Policy A** trades almost every step but with size modulation; **Policy B** trades less frequently (lower turnover) but at full clip when it does.
 
-#### 6.5 Token-level illustrations
+#### Token-level illustrations
 
 **Cross-sectional heterogeneity.** Sharpe varies across names—unsurprising given token-specific microstructure and on-chain regimes:
 
@@ -104,7 +102,7 @@ Two robust patterns emerge:
 * Realized returns mostly fall within **q10–q90**; misses are rare and cluster during abrupt regime shifts, consistent with the reliability curves in §5.3.
 ---
 
-##### 6.6 Interpretation and link to the research question
+##### Interpretation and link to the research question
 
 The trading exercise answers the **economic relevance** part of the research question:
 
@@ -114,7 +112,7 @@ The trading exercise answers the **economic relevance** part of the research que
 
 ---
 
-##### 6.7 Practical considerations and caveats
+##### Practical considerations and caveats
 
 * **Execution realism.** Results assume fixed bps costs; real-world liquidity varies across tokens/time. Capacity is constrained by the gross cap $G_{\max}$ and market depth.
 * **Borrow/shorting.** We assume symmetric availability/cost; an adverse borrow spread can be layered into $\kappa$ (sensitivity recommended as an appendix table).
