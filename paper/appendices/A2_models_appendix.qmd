@@ -1,4 +1,4 @@
-### Appendix M0 — Notation and basic definitions (for §4.1) {#app-m2-notation}
+### Appendix 2 — Notation and basic definitions (for §4.1) {#app-m2-notation}
 
 **Conditional quantile.**
 

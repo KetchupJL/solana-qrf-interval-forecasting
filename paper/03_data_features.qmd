@@ -1,8 +1,11 @@
-## Data and Features
+# Data and Features
 
 The validity of any forecasting model is fundamentally constrained by the quality and integrity of its input data. For volatile and rapidly evolving assets like cryptocurrencies, constructing a robust, research-grade dataset is a critical prerequisite for meaningful analysis. This chapter details the multi-stage process undertaken to source, clean, and engineer the data used in this dissertation. It begins by defining the asset universe and data sources, then describes the construction of the target variable and the extensive feature engineering pipeline. Finally, it outlines the preprocessing steps taken to handle missing data and presents key insights from the exploratory data analysis that guided the modelling approach.
 
-### Data Sourcing and Asset Universe Definition
+## Data Sourcing and Asset Universe Definition
+
+We ingested data using a hybrid Python and TypeScript  pipeline, with more than ten modular ingestion scripts covering OHLCV, order-book snapshots, and on-chain endpoints, plus two processing notebooks for aggregation and quality checks. Details of API endpoints and sources are provided in Appendix 1, along with links to the exact scripts and notebooks.
+
 The foundation of this study is a bespoke, multi-source panel dataset constructed at a 12-hour resolution, specifically designed to support tail-sensitive, quantile-based forecasting. The data streams were aggregated from several high-quality APIs, using specific endpoints for different data types to ensure the highest fidelity for each signal.
 
 The primary data sources included:
@@ -23,17 +26,17 @@ This filtering was a deliberate and aggressive research design choice. Tokens wi
 The initial raw dataset comprised **8,326 rows across 23 tokens**. After applying the filtering criteria and cleaning procedures detailed in the following sections, the final asset universe for this study consists of **20 mid-cap Solana tokens**. The full dataset spans from **5th December 2024 to 3rd June 2025**, comprising a total of **6,464** 12-hour observations after cleaning and alignment.
 
 
-### 3.2 Target Variable Construction and Properties
+## 3.2 Target Variable Construction and Properties
 
 The predictive target for this study is the **72-hour forward-looking logarithmic return**, calculated at each 12-hour time step. It is formally defined as:
 
 $$r^{(72h)}_t = \log(P_{t+6}) - \log(P_t)$$
 
-where $P_t$ is the closing price of the token at the end of the 12-hour bar at time $t$, and $P_{t+6}$ is the closing price six 12-hour bars later. The use of logarithmic returns is standard practice in financial econometrics, as it provides a continuously compounded return that is time-additive and whose distribution more closely approximates normality than simple returns.
+where $P_t$ is the closing price of the token at the end of the 12-hour bar at time $t$, and $P_{t+6}$ is the closing price six 12-hour bars later. The use of logarithmic returns is standard practice in financial econometrics [@Campbell1997], as it provides a continuously compounded return that is time-additive and whose distribution more closely approximates normality than simple returns.
 
 The combination of a **12-hour data cadence** and a **72-hour forecast horizon** was a deliberate design choice to create a target variable suitable for mid-frequency trading strategies. The 12-hour aggregation smooths the extreme noise present in sub-hourly price changes, while the 72-hour horizon is long enough to capture significant, economically meaningful moves where tail events and distributional properties become highly relevant. This choice aims to maximise the signal-to-noise ratio for the specific purpose of forecasting the distribution of multi-day returns.
 
-Exploratory analysis confirms that the resulting target variable exhibits the extreme non-normal characteristics that motivate this research. As shown in **Table 3.1**, the pooled distribution of 72-hour log returns is highly leptokurtic and positively skewed. With a **kurtosis of 20.73**, it demonstrates exceptionally fat tails compared to a normal distribution (kurtosis of 3), indicating that extreme price movements are far more common than a Gaussian model would suggest.
+Exploratory analysis confirms that the resulting target variable exhibits the extreme non-normal characteristics that motivate this research. As shown in **Table 3.1**, the pooled distribution of 72-hour log returns is highly leptokurtic and positively skewed. With a kurtosis of 20.73, it demonstrates exceptionally fat tails compared to a normal distribution (kurtosis of 3), indicating that extreme price movements are far more common than a Gaussian model would suggest.
 
 | Statistic | Value |
 | :--- | :--- |
@@ -49,13 +52,15 @@ The heavy-tailed nature of the target is further illustrated in **Figure 3.1**, 
 
 ![Distribution of the 72-hour log return target variable, pooled across all tokens. The distribution exhibits a sharp peak and significantly heavier tails than a comparable normal distribution, justifying the use of quantile-based models.](figures/raw/fig-3-1.pdf){#fig-return-dist fig-align="center" width="65%"}
 
-Furthermore, the properties of this distribution are not static. Analysis of the underlying 12-hour returns reveals that the shape of the distribution is highly conditional on the broader market environment. By defining macro-regimes based on the quartiles of SOL's 12-hour return, it becomes evident that the conditional distribution of token returns shifts systematically. As shown in **Figure 3.2**, "Bull" regimes are associated with positive skew and a fatter right tail, whereas "Bear" regimes exhibit heavier left tails, signalling increased downside risk. This empirical finding of **regime-dependence** is critical, as it justifies the need for a *conditional* forecasting model that can adapt its predicted quantiles based on contextual features.
+Furthermore, the properties of this distribution are not static. Analysis of the underlying 12-hour returns reveals that the shape of the distribution is highly conditional on the broader market environment. By defining macro-regimes based on the quartiles of SOL's 12-hour return, it becomes evident that the conditional distribution of token returns shifts systematically. As shown in **Figure 3.2**, "Bull" regimes are associated with positive skew and a fatter right tail, whereas "Bear" regimes exhibit heavier left tails, signalling increased downside risk. This empirical finding of regime-dependence is critical, as it justifies the need for a *conditional* forecasting model that can adapt its predicted quantiles based on contextual features.
 
-![Conditional distribution of 12-hour token returns, faceted by the SOL macro-regime. The shape, skew, and tail behaviour of the returns change significantly depending on the broader market context.](figures/raw/fig-3-2.pdf){#fig-regime-dist fig-align="center" width="60%"}
+![Conditional distribution of 12-hour token returns, faceted by the SOL macro-regime. The shape, skew, and tail behaviour of the returns change significantly depending on the broader market context.](figures/raw/fig-3-2.pdf){#fig-regime-dist fig-align="center" fig-pos="H" width="70%"}
 
-Finally, it is important to note that this construction results in an **overlapping target variable**. A new 72-hour forecast is generated every 12 hours, meaning that the forecast periods overlap significantly. This has direct implications for the evaluation methodology, as the resulting forecast errors will be serially correlated by construction. As detailed in the literature review and methodology chapters, this requires the use of specific techniques, such as blocked cross-validation and HAC-robust statistical tests, to ensure valid inference.
+Finally, it is important to note that this construction results in an overlapping target variable. A new 72-hour forecast is generated every 12 hours, meaning that the forecast periods overlap significantly. This has direct implications for the evaluation methodology, as the resulting forecast errors will be serially correlated by construction. As detailed in the literature review and methodology chapters, this requires the use of specific techniques, such as blocked cross-validation and HAC-robust statistical tests, to ensure valid inference.
 
-### Data Preprocessing and Cleaning
+## Data Preprocessing and Cleaning
+
+The **cleaning strategy** proceeded in stages: (i) temporal alignment to fixed 12-hour bins; (ii) gap detection and minimal winsorisation; (iii) removal or flagging of structurally missing segments; and (iv) post-aggregation QA checks. Implementation snippets are referenced in the Appendix.
 
 Before any features could be engineered, the raw, multi-source panel dataset underwent a rigorous cleaning and preprocessing pipeline. This was a critical phase designed to handle the significant data quality challenges inherent in cryptocurrency markets, such as missing observations and inconsistent token histories, ensuring the final dataset was robust and suitable for modelling. The initial raw data contained approximately **18% missing values** in the core OHLCV columns alone, with some on-chain features like `holder_count` missing nearly 40% of their data (see Appendix **Table \@tbl:apx-missing-top10** for a full breakdown).
 
@@ -63,26 +68,23 @@ The nature of this missingness was not uniform. As illustrated by the heatmap in
 
 **Figure 3.4:** *Heatmap of OHLCV data presence across the token universe over time (Green = Present, Red = Missing). The block-like structure for some tokens indicates late listings, while sporadic red patches show intermittent data gaps, motivating a hybrid cleaning strategy.*
 
-![Heatmap of OHLCV data presence across the token universe over time (Green = Present, Red = Missing). The block-like structure for some tokens indicates late listings, while sporadic red patches show intermittent data gaps, motivating a hybrid cleaning strategy.](figures/raw/fig-3-3.pdf){#fig-ohlcv-heat fig-align="center" width="60%"}
+![Heatmap of OHLCV data presence across the token universe over time (Green = Present, Red = Missing). The block-like structure for some tokens indicates late listings, while sporadic red patches show intermittent data gaps, motivating a hybrid cleaning strategy.](figures/raw/fig-3-3.pdf){#fig-ohlcv-heat fig-align="center" width="85%"}
 
 #### Temporal Alignment and Clipping
 To ensure temporal consistency, each time series was first clipped to begin only from its first fully valid OHLCV observation. This step, detailed in the strategy summary in Appendix **\@sec-cleaning-strategy**, removes spurious data from pre-launch or illiquid initial listing periods, which could otherwise contaminate the analysis. Tokens with insufficient history after this clipping process (e.g., `$COLLAT`) were dropped from the universe entirely.
 
 #### Imputation Strategy
-A key challenge was to fill the remaining intermittent gaps without distorting the underlying distributional properties of the data. Several imputation methods were benchmarked on simulated missing data. Counter-intuitively, the analysis revealed that a simple **linear interpolation** outperformed more complex methods like Kalman smoothing in terms of Root Mean Squared Error (RMSE) (see Appendix **\@#imp-table** for benchmark results). This finding suggests that for small, sporadic gaps, a simple interpolation preserves the local price trajectory and its inherent noise structure more effectively than methods that impose stronger, potentially smoothing, structural assumptions.
+A key challenge was to fill the remaining intermittent gaps without distorting the underlying distributional properties of the data. Several imputation methods were benchmarked on simulated missing data. Counter-intuitively, the analysis revealed that a simple linear interpolation outperformed more complex methods like Kalman smoothing in terms of Root Mean Squared Error (RMSE) (see Appendix **\@#imp-table** for benchmark results). This finding suggests that for small, sporadic gaps, a simple interpolation preserves the local price trajectory and its inherent noise structure more effectively than methods that impose stronger, potentially smoothing, structural assumptions.
 
-Therefore, the final strategy adopted was a hybrid approach: **linear interpolation** to fill the majority of gaps, supplemented by a **forward-fill** for a maximum of two consecutive 12-hour bars.
+Therefore, the final strategy adopted was a hybrid approach: linear interpolation to fill the majority of gaps, supplemented by a forward-fill for a maximum of two consecutive 12-hour bars.
 
-#### Imputation-Awareness
-Crucially, the imputation process was not treated as a silent correction. For every feature that was imputed, a corresponding binary **imputation mask** variable was created. This flag takes a value of `1` if the original data point at that timestamp was missing and subsequently imputed, and `0` otherwise. This technique of "imputation-awareness" is a key methodological choice, as it allows the machine learning model to learn directly from the patterns of missingness. This is particularly relevant in crypto markets, where data gaps themselves can be a predictive signal (e.g., indicating an exchange API outage or a period of extreme market stress).
-
-### Exploratory Data Analysis
+## Exploratory Data Analysis
 
 Following the preprocessing pipeline, an extensive exploratory data analysis (EDA) was conducted to uncover the key empirical properties of the data. This section presents the three most critical findings that provide a direct, data-driven justification for the subsequent feature engineering choices and the selection of a non-parametric, conditional forecasting model.
 
 #### Volatility Clustering and Asymmetric Leverage
 
-The data exhibits two foundational properties of financial time series that invalidate simple, static risk models. First, strong **volatility clustering** is evident in the autocorrelation of absolute 12-hour returns, confirming that risk is time-varying and motivating the inclusion of dynamic volatility features.
+The data exhibits two foundational properties of financial time series that invalidate simple, static risk models. First, strong volatility clustering is evident in the autocorrelation of absolute 12-hour returns, confirming that risk is time-varying and motivating the inclusion of dynamic volatility features.
 
 Second, the relationship between returns and subsequent volatility is asymmetric. An analysis regressing 12-hour log returns against forward 36-hour realised volatility reveals a distinct U-shaped pattern, as shown in **Figure 3.5**. This confirms that variance is conditional on the magnitude of recent returns, with large moves in either direction predicting elevated future volatility. The effect is slightly stronger for negative returns, consistent with a "crypto leverage effect" where downside shocks lead to greater market instability. This non-linear dynamic necessitates a modelling approach, such as the Quantile Regression Forest used in this study, that can naturally capture such relationships and adapt its prediction interval widths based on the direction and magnitude of recent price shocks.
 
@@ -96,26 +98,30 @@ An analysis of the correlation structure between 18 core features was conducted 
   * `btc_close_usd` and `tvl_usd` ($r \\approx 0.94$)
   * `sol_close_usd` and `tvl_usd` ($r \\approx 0.89$)
 
-This finding is critical. While these raw fields were retained for the initial feature engineering phase to allow for the construction of richer indicators (e.g., from OHLC data), this analysis motivates the necessity of a subsequent feature pruning step. Reducing this high level of collinearity before modelling is essential for improving the stability, training speed, and interpretability of the final Quantile Regression Forest.
+This finding is critical. It implies that highly collinear inputs can inflate variance, degrade interpretability, and reduce generalisation; we therefore prioritise redundancy control (filtering/aggregation) during feature engineering and in later pruning. While these raw fields were retained for the initial feature engineering phase to allow for the construction of richer indicators (e.g., from OHLC data), this analysis motivates the necessity of a subsequent feature pruning step. Reducing this high level of collinearity before modelling is essential for improving the stability, training speed, and interpretability of the final Quantile Regression Forest.
 
-![Pearson correlation matrix of key features. The strong red blocks highlight pairs of highly correlated variables, necessitating a feature pruning or aggregation strategy.](figures/raw/fig-3-6.pdf){#fig-leverage-effect fig-align="center" width="65%"}
+![Pearson correlation matrix of key features. The strong red blocks highlight pairs of highly correlated variables, necessitating a feature pruning or aggregation strategy.](figures/raw/fig-3-6.pdf){#fig-leverage-effect fig-align="center" width="80%"}
 
 #### The Empirical Failure of Gaussian Assumptions
 
 To provide a definitive, data-driven justification for model selection, a baseline experiment was conducted to compare a naive Gaussian interval forecast (defined as $\\pm z \\cdot \\sigma$, using realised volatility) against a simple Quantile Regression Forest. The results, shown in **Figure 3.7**, are stark.
 
-The naive Gaussian intervals systematically **under-cover** the true outcomes across all nominal levels; for example, a nominal 80% interval achieves only \~70% empirical coverage. In contrast, even a basic QRF model tracks the ideal 45-degree line far more closely, demonstrating superior **calibration** by adapting to the true fat-tailed and skewed nature of the returns.
+The naive Gaussian intervals systematically under-cover the true outcomes across all nominal levels; for example, a nominal 80% interval achieves only \~70% empirical coverage. In contrast, even a basic QRF model tracks the ideal 45-degree line far more closely, demonstrating superior calibration by adapting to the true fat-tailed and skewed nature of the returns.
 
-Crucially, this improvement in calibration does not come at the cost of precision. At a nominal 80% coverage level, the QRF intervals were also significantly **sharper**, with an average width of 0.1682 compared to 0.2038 for the naive method. This dual failure of the Gaussian approach—in both calibration and sharpness—provides the ultimate empirical justification for rejecting simple parametric assumptions and adopting a non-parametric methodology like QRF for this dataset.
+Crucially, this improvement in calibration does not come at the cost of precision. At a nominal 80% coverage level, the QRF intervals were also significantly sharper, with an average width of 0.1682 compared to 0.2038 for the naive method. This dual failure of the Gaussian approach—in both calibration and sharpness—provides the ultimate empirical justification for rejecting simple parametric assumptions and adopting a non-parametric methodology like QRF for this dataset.
 
-![Calibration curve comparing the empirical vs. nominal coverage of naive Gaussian intervals and QRF intervals. The QRF's proximity to the ideal line demonstrates its superior ability to model the data's true distribution.](figures/raw/fig-3-7.pdf){#fig-calibration-curve fig-align="center" out-width="65%"}
+![Calibration curve comparing the empirical vs. nominal coverage of naive Gaussian intervals and QRF intervals. The QRF's proximity to the ideal line demonstrates its superior ability to model the data's true distribution.](figures/raw/fig-3-7.pdf){#fig-calibration-curve fig-align="center" out-width="55%"}
+*Implementation note:* plotting and calibration code is provided in the Appendix.
 
-### 3.5 Feature Engineering and Selection
+## Feature Engineering and Selection
 
 Following the data preparation and exploratory analysis, an extensive feature set was engineered. This process was guided by two main principles: first, all predictors must be strictly causal, using only information available at or before time $t$; second, the feature set should be designed to capture the specific statistical properties—such as volatility clustering, asymmetry, and regime-dependence—identified in the EDA.
 
-#### 3.5.1 Feature Construction by Family
-The engineered set focuses on signals that respond to the unique dynamics of cryptocurrency markets. The literature supports using a diverse set of technical and on-chain indicators, as machine learning models can effectively synthesise these signals to improve predictive accuracy `[@Akyildirim2021]`. The constructed features fall into five families:
+#### Feature Construction by Family
+
+A complete feature dictionary with raw feature definitions, transformations, and data sources is provided in the Appendix 1; this section summarises the construction logic by family.
+
+The engineered set focuses on signals that respond to the unique dynamics of cryptocurrency markets. The literature supports using a diverse set of technical and on-chain indicators, as machine learning models can effectively synthesise these signals to improve predictive accuracy [@Akyildirim2021]. The constructed features fall into five families:
 
 1.  **Momentum & Trend:** Standard indicators such as 12h and 36h log-returns, the 14-period Relative Strength Index (RSI), and MACD were created to capture trend and mean-reversion dynamics.
 2.  **Volatility & Tails:** To model the observed volatility clustering and leverage effects, features such as realised volatility over 3 and 6 bars, downside-only volatility, and the Average True Range (ATR) were included. Higher-moment estimators like rolling 36-hour skewness were also engineered to capture tail asymmetry.
@@ -125,7 +131,7 @@ The engineered set focuses on signals that respond to the unique dynamics of cry
 
 A complete feature dictionary, including formulas and window lengths, is provided in Appendix [Appendix ID].
 
-#### 3.5.2 Redundancy Control and Pruning
+#### Redundancy Control and Pruning
 The initial engineering process generated over 90 candidate features. To create a final feature set that was both predictive and robust, a systematic, three-stage pruning pipeline was implemented:
 
 1.  **Initial Filtering:** Features with near-zero variance or excessive missingness (>80%) were removed.
