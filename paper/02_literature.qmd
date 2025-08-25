@@ -1,8 +1,77 @@
-# Literature review
+# Literature Review
 
-- Interval / quantile forecasting and proper scoring.
-- QRF (non-parametric), LQR (parametric), boosting (LightGBM).
-- Conformal prediction / CQR; calibration in finite samples.
-- Crypto specifics: heavy tails, regime shifts, microstructure & on-chain features.
+## The Challenge: Statistical Properties of Cryptocurrency Returns
 
-> **Figure refs to add later:** reliability diagrams, schematic of interval scoring (optional).
+The return distributions of cryptocurrencies are characterised by heavy tails, significant skew, and extreme kurtosis relative to traditional assets, reflecting the frequency of large, abrupt price movements [@Gkillas2018]. This leptokurtosis is compounded by pronounced volatility clustering, periods of relative calm followed by explosive variability, a dynamic exacerbated by the market's continuous operation and fragmented liquidity, which can amplify shocks across uncoordinated venues.
+
+Crucially, this extreme risk is also largely idiosyncratic to the crypto market. Major cryptocurrencies carry substantial tail risk that is not strongly correlated with traditional stock market indices; instead, extreme events are driven by crypto-specific factors such as investor sentiment, regulatory news, or network-level events [@Borri2019]. Furthermore, their returns show little to no exposure to standard macroeconomic risk factors, being influenced instead by internal drivers like network momentum and adoption metrics [@Liu2021]. This body of evidence demonstrates that classical financial risk models, with their reliance on Gaussian assumptions and traditional risk factors, are fundamentally misspecified for crypto assets. A credible forecasting framework must therefore abandon these assumptions and be built to incorporate the crypto-native features that drive risk.
+
+## Approaches to Quantile Estimation
+
+Given the non-normal character of crypto returns established previously, estimating the full conditional distribution is more informative than forecasting its central tendency. Quantile regression provides a natural framework for this, but the choice between a restrictive parametric model and a flexible non-parametric one is critical.
+
+#### The Parametric Benchmark: Linear Quantile Regression
+Quantile regression, introduced by [@Koenker1978], generalises linear regression by estimating conditional quantiles directly. We evaluate quantile models using the pinball loss, a strictly proper scoring rule for quantiles (see 5.4). While LQR provides a transparent and interpretable benchmark, its fundamental assumption of a fixed linear relationship across all quantiles represents a severe limitation. This rigidity is fundamentally at odds with the non-linear volatility dynamics and abrupt regime shifts that define cryptocurrency markets. Furthermore, the common practical issue of quantile crossing, where independently estimated quantile lines intersect, and can yield incoherent and unusable interval forecasts unless post-hoc remedies like rearrangement are applied [@Chernozhukov2010]. These shortcomings do not merely motivate, but necessitate the exploration of more flexible, non-parametric methods.
+
+#### Non-Parametric Solutions: Quantile Regression Forests
+As a direct response to the limitations of linear models, Quantile Regression Forests (QRF), proposed by [@Meinshausen2006], extend the Random Forest algorithm [@Breiman2001] to estimate the entire conditional distribution. Instead of averaging outcomes in terminal nodes, QRF uses the full empirical distribution of training responses within the leaves to form a predictive distribution, from which conditional quantiles are derived.
+
+This non-parametric approach is inherently well-suited to financial data; it naturally captures complex non-linearities and adapts to heteroskedasticity without pre-specification. However, QRF is not without its own challenges. Its theoretical foundation rests on an assumption of independent and identically distributed data (i.i.d.), a condition clearly violated by financial time series. A naive application of QRF to time-ordered data can therefore lead to biased estimates. This violation is a central methodological challenge that requires specific adaptations, such as the time-decay weighting and rolling validation schemes discussed later, to apply the model soundly. Furthermore, the accuracy of its tail quantile estimates can degrade if the terminal leaves are sparsely populated, a genuine risk when modelling extreme events. Boosting offers another route to non-parametric quantile estimation, but with contrasting properties.
+
+#### A Boosting Alternative: LightGBM for Quantiles
+Gradient boosting presents another powerful non-parametric paradigm. It constructs an ensemble sequentially, with each new tree trained to correct the errors, specifically, the gradients of the loss function—of the preceding models [@Friedman2001]. This methodology can be directly applied to quantile regression by using the pinball loss as the objective. LightGBM [@Ke2017] is a highly efficient and scalable implementation of this idea, making it a formidable baseline.
+
+In sharp contrast to QRF's parallelised construction, boosting's sequential focus on difficult-to-predict instances can yield sharper estimates in the tails. This potential for higher accuracy, however, comes with significant trade-offs. A separate model must typically be trained for each target quantile, imposing a considerable computational burden. The aggressive, error-focused fitting can also produce "ragged" and unstable quantile estimates in regions with sparse data and may overfit transient noise without careful regularisation. Finally, like LQR, independently fitted boosting models are susceptible to the problem of quantile crossing.
+
+## Ensuring Rigour: Calibration, Evaluation, and Comparison
+
+Selecting a flexible forecasting model is insufficient on its own; its predictive performance must be evaluated using principled metrics, its outputs calibrated to ensure reliability, and its superiority over alternatives established through formal statistical tests.
+
+#### Proper Scoring and Forecast Evaluation
+A principled evaluation of probabilistic forecasts requires the use of strictly proper scoring rules, which incentivise the model to report its true belief about the future distribution. For quantile forecasts, the canonical proper scoring rule is the pinball loss [@Gneiting2007]. As the metric being directly optimised by the models, it serves as the primary tool for evaluation. However, performance is not a single dimension. The quality of an interval forecast is judged by two distinct and often competing properties: calibration, the statistical consistency between the nominal coverage rate (e.g., 90%) and the empirical frequency of outcomes falling within the interval; and sharpness, the narrowness of the interval. An ideal forecast is one that is maximally sharp, subject to being well-calibrated. However, a model optimised on a proper score is not inherently guaranteed to be well-calibrated in finite samples. This gap between theoretical optimisation and empirical reliability motivates the use of formal calibration techniques.
+
+#### Achieving "Honest" Intervals: Conformal Prediction
+Conformal prediction provides a distribution-free framework to correct for such miscalibration. Specifically, Conformalized Quantile Regression (CQR) [@Romano2019] provides a mechanism to adjust a base model's quantile forecasts to achieve guaranteed marginal coverage. It uses a hold-out calibration set to compute a conformity score based on model errors, which is then used to adjust the width of future prediction intervals. While the underlying exchangeability assumption is violated in time series, employing a rolling calibration window of recent data provides a practical and widely used compromise to adapt the procedure to non-stationary environments.
+
+#### Statistically Significant Comparisons: The Diebold-Mariano Test
+To move beyond descriptive comparisons of average loss, formal statistical tests are required to determine if the performance difference between two models is significant. The Diebold-Mariano (DM) test [@Diebold1995] provides a standard framework for this, on rolling loss differentials (see Methods). For the multi-step, overlapping forecasts used in this project, the sequence of loss differentials will be autocorrelated by construction. It is therefore critical to use a heteroskedasticity and autocorrelation consistent (HAC) variance estimator, as recommended by [@West1996], to ensure valid statistical inference.
+
+## Methodological Requirements for Robust Time-Series Forecasting
+
+The foundational literature establishes the potential of non-parametric models, but their successful application to volatile, non-stationary financial time series is contingent upon a number of specific methodological adaptations. This section reviews the literature concerning these essential requirements, from ensuring the logical coherence of predictions to adapting models to the temporal dynamics of the data.
+
+#### Ensuring Coherent Predictions: Non-Crossing Quantiles
+Models that estimate quantiles independently, such as LQR and standard gradient boosting, are susceptible to the critical failure of quantile crossing. This occurs when, for instance, a predicted 90th percentile falls below the predicted 50th percentile, yielding an illogically  and unusable conditional distribution. To rectify this, [@Chernozhukov2010] proposed a post-processing "rearrangement" technique. This method applies isotonic regression to the initially estimated quantile function, projecting the unconstrained predictions onto the space of valid, non-decreasing distribution functions. This ensures the monotonicity of the quantile curve and is a critical step for producing valid prediction intervals (see Methods).
+
+#### Adapting to Non-Stationarity and Temporal Dependence
+Financial time series are fundamentally non-stationary and autocorrelated, violating the i.i.d. assumption that underpins many machine learning models. Two distinct but related adaptations are required to address this.
+
+First, to handle non-stationarity such as volatility clustering, the model must prioritise more recent information. The literature supports the use of time-decay sample weights to achieve this. [@Taylor2008], for example, introduced exponentially weighted quantile regression for Value-at-Risk estimation, demonstrating that up-weighting recent observations yields more responsive and accurate tail forecasts in changing market conditions.
+
+Second, to handle temporal dependence, model evaluation and hyperparameter tuning must respect the chronological order of the data. Standard k-fold cross-validation is invalid for time series, as it can lead to lookahead bias and produce misleadingly optimistic performance estimates. The literature therefore strongly advocates for rolling-origin or blocked cross-validation schemes, which preserve the temporal sequence by training only on past data to forecast the future, thereby simulating a live forecasting environment [@Bergmeir2018].
+
+#### Correcting for Bias and Ensuring Empirical Calibration
+Even correctly specified quantile models can exhibit systematic biases in finite samples. As [@Bai2021] have shown, linear quantile regression can suffer from a theoretical under-coverage bias, where a nominal 90% interval may contain the true outcome significantly less than 90% of the time due to estimation error. This problem motivates the necessity of post-hoc calibration.
+
+While the CQR framework discussed previously is one such solution, the literature offers several alternatives. Methods like the Jackknife+ [@Barber2021] and residual bootstraps provide different mechanisms for constructing prediction intervals with more reliable coverage properties. The existence of this rich literature on calibration highlights a crucial principle for risk management applications: a model's raw output cannot be taken at face value. An explicit calibration step is required to correct for inherent biases and ensure the resulting prediction intervals are empirically "honest".
+
+## Integrating Crypto-Native Data Sources
+
+The literature on cryptocurrency risk factors makes it clear that models confined to historical price data are insufficient. The unique nature of blockchain-based assets provides a rich set of crypto-native data sources that are essential for capturing the specific drivers of risk and return in this asset class.
+
+#### Market Microstructure and Liquidity
+Like traditional markets, cryptocurrency price dynamics are influenced by liquidity and trading frictions. Empirical studies have documented that periods of market stress coincide with widening bid-ask spreads and evaporating order book depth [@Dyhrberg2016]. Furthermore, the on-chain nature of transactions introduces unique microstructural features, such as network congestion and transaction fees, which can impact market liquidity and price formation [@Easley2019]. Incorporating proxies for these effects is crucial, as it allows a model to dynamically adjust its estimate of uncertainty; for instance, by widening its prediction intervals in response to deteriorating market liquidity, thereby anticipating volatility spikes.
+
+#### On-Chain Activity and Network Fundamentals
+Blockchains provide a transparent ledger of network activity, offering powerful proxies for an asset's fundamental adoption and utility. Metrics such as the growth in active addresses, on-chain transaction counts, and, in the context of decentralised finance (DeFi), the Total Value Locked (TVL) in smart contracts, can signal shifts in investor sentiment and capital flows. Empirical studies consistently find that models augmented with on-chain metrics significantly outperform those based only on historical prices, as this data provides unique information about network health and demand [@Sebastiao2021]. These features allow a model to condition its forecasts on the fundamental state of the network, potentially informing not just the location but also the shape of the predictive distribution.
+
+#### Cross-Asset Spillovers and Systemic Risk
+The cryptocurrency market is a highly interconnected system where shocks to major assets like Bitcoin and Ethereum often propagate to smaller altcoins. This "connectedness" has been formally measured, showing significant return and, particularly, volatility spillovers from market leaders to the rest of the ecosystem [@Koutmos2018; @Diebold2014]. This implies that the risk of an individual token is not purely idiosyncratic; it is also a function of the broader crypto market's state. Consequently, any forecasting model that treats a token in isolation is fundamentally misspecified and is likely to underestimate systemic risk. A robust framework must therefore account for these cross-asset influences.
+
+## Synthesis and Conclusion
+
+This review has established a clear and compelling justification for the methodology adopted in this dissertation. The unique statistical properties of cryptocurrency returns—heavy tails, volatility clustering, and dependence on idiosyncratic, on-chain factors—render traditional parametric models inadequate. This failure necessitates the use of flexible, non-parametric methods, for which Quantile Regression Forests are a logical choice, given their ability to capture complex, non-linear relationships without restrictive distributional assumptions.
+
+However, the literature also makes it clear that a naive application of any such model would be insufficient. A credible forecasting framework requires a series of specific, evidence-based adaptations. The need to adapt to non-stationarity justifies the use of time-decay weighting. The imperative for valid, coherent predictions necessitates post-processing to enforce non-crossing quantiles. The requirement for reliable out-of-sample evaluation mandates the use of rolling cross-validation. Finally, the well-documented tendency for quantile models to mis-calibrate compels the integration of a formal calibration step to ensure the final prediction intervals are empirically valid.
+
+By synthesising these distinct strands of literature—from model selection to time-series adaptation and calibration—this project constructs an integrated and methodologically robust framework. This framework is specifically designed to address the multifaceted challenges of interval forecasting in the volatile and rapidly evolving cryptocurrency market.

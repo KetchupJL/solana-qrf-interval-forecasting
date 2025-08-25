@@ -1,0 +1,46 @@
+full token list, missingness thresholds, feature dictionary.
+
+### Table A1: Top-10 missingness audit {#apx-missing-top10}
+
+{=latex}
+\input{tables/raw/missing_top10.tex}
+
+### OHLCV Data Cleaning and Filtering Strategy {#sec-cleaning-strategy}
+
+To ensure high-quality OHLCV data for tail-sensitive forecasting, a multi-step cleaning strategy was implemented. Tokens with insufficient history were dropped entirely. For stable but late-starting tokens, their time series were clipped to begin at the first valid data point. Intermittent gaps were filled using a limited forward-fill (max 2 periods) to preserve volatility structure, as this method was found to outperform more complex alternatives. A binary `was_imputed` flag was created for all imputed points. This rigorous approach maintains data integrity for rolling-window backtesting and avoids aggressive imputations that could distort tail risk estimates.
+
+### Table A2: Comparison of Imputation Methods on Simulated Missing Data {#imp-table}
+
+To select the optimal imputation strategy, several methods were benchmarked on the `close_usd` price series for the token `$WIF` with 5% of data points randomly removed to simulate missingness. The Root Mean Squared Error (RMSE) between the imputed and true values was calculated for each method.
+
+| Imputation Method | RMSE |
+| :--- | :--- |
+| k-NN Imputation (k=5) | 0.93970 |
+| Forward-fill (limit=2) | 0.09185 |
+| Kalman Smoothing | 0.09185 |
+| **Linear Interpolation** | **0.06042** |
+
+The results clearly indicate that **linear interpolation** achieves the lowest reconstruction error. Based on this empirical evidence, a hybrid strategy of linear interpolation supplemented with a limited forward-fill was adopted for the final data preprocessing pipeline.
+
+### Table A2: Feature Dictionary {#feature-table}
+
+The table below enumerates the key features engineered for the forecasting models. All features were calculated on a per-token basis using a `groupby` operation to prevent data leakage.
+
+| Family | Feature Name | Window | Description |
+| :--- | :--- | :--- | :--- |
+| **Momentum** | `logret_12h` | 1 | 12-hour logarithmic return. |
+| | `logret_36h` | 3 | 36-hour logarithmic return. |
+| | `rsi_14` | 14 | 14-period Relative Strength Index. |
+| | `stoch_k` | 14 | 14-period Stochastic Oscillator %K. |
+| **Volatility** | `realized_vol_36h` | 3 | 36-hour realised volatility (std of `logret_12h`). |
+| | `atr_14` | 14 | 14-period Average True Range. |
+| | `bollinger_bw` | 20 | 20-period Bollinger Band Width. |
+| | `downside_vol_3bar` | 3 | Realised volatility of negative returns only. |
+| | `rolling_skew_50` | 50 | 50-bar rolling skewness of 12h returns. |
+| **Liquidity** | `amihud_illiq_12h` | 3 | 36-hour Amihud illiquidity measure. |
+| | `vol_zscore_14` | 14 | Z-score of 12h volume vs. its 14-period mean. |
+| **On-Chain** | `holder_growth_7d` | 14 | 7-day (14-bar) percentage growth in holders. |
+| | `tx_per_account` | - | Network transactions per holder. |
+| **Context** | `sol_return` | 1 | 12-hour log return of SOL. |
+| | `corr_SOL_36h` | 3 | 36-hour rolling correlation to SOL returns. |
+| **Calendar** | `day_of_week` | - | Day of the week (0=Monday). |

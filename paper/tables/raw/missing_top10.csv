@@ -1,0 +1,11 @@
+variable,dtype,n_unique,pct_missing (%)
+holder_count,float64,4734,39.35863559932741
+open_usd,float64,6802,18.30410761470094
+high_usd,float64,6802,18.30410761470094
+low_usd,float64,6802,18.30410761470094
+close_usd,float64,6802,18.30410761470094
+volume_usd,float64,6803,12.63511890463608
+token_name,object,23,12.63511890463608
+new_token_accounts,float64,892,9.9207302426135
+transfer_count,float64,4502,9.896709104011531
+tvl_tvl_usd,float64,180,0.5524861878453038

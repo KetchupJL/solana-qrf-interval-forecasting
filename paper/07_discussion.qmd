@@ -1,0 +1,57 @@
+## 6. Discussion
+
+### What the evidence shows (against the hypotheses)
+
+Across the blocked rolling evaluation, **QRF** delivers the **lowest pinball loss in the left tail** (τ ∈ {0.05, 0.10, 0.25}), is **competitive at the median**, and **tracks the upper tails closely** (Table @tbl-pinball-tau). This supports **H1 (Superior Accuracy)** in the region that matters most for downside risk control. On **calibration**, QRF’s **90% coverage is close to nominal** while **80% shows a small under-coverage** (Table @tbl-cov-width; Figure @fig-reliability-global), whereas **LightGBM over-covers** via wide bands and **LQR under-covers** materially. That pattern supports **H2 (Superior Calibration)** relative to LQR and a more balanced stance than LightGBM’s conservatism. For **sharpness**, QRF achieves **narrower intervals at comparable coverage** than LightGBM (Figure @fig-efficiency; cf. @fig-widths), supporting **H3 (Superior Sharpness)**. Finally, HAC-robust **Diebold–Mariano tests** and a **Model Confidence Set** confirm that the QRF advantage is statistically credible (Tables @tbl-dm-counts, @tbl-mcs), addressing **H4 (Statistical Significance)**.
+
+### Why QRF behaves this way (mechanism, not just metrics)
+
+The performance profile aligns with the model’s design. **Non-parametric splits** let QRF adapt to heteroskedastic, non-linear interactions (e.g., volatility × liquidity × on-chain activity) without assuming a symmetric residual law. **Leafwise empirical distributions** return **direct conditional quantiles**, which is valuable when tails are heavy and asymmetric. **Time-decay weights** privilege recent observations in a drifting distribution; **regime-aware residual offsets** correct tail miscalibration in volatile clusters without bluntly widening quiet-regime bands. **Isotonic rearrangement** prevents quantile crossing, and **split-conformal** brings finite-sample coverage back toward nominal. The empirical signature—**coverage roughly equalised across regimes while widths expand in volatility**—is the expected outcome of this pipeline.
+
+### Where the baselines still help (and why)
+
+Although QRF dominates in tail accuracy and efficiency, the baselines retain niche value. **LightGBM** with conformal adjustment is attractive if a **conservative risk posture** is required ex ante (e.g., screening for extreme downside), accepting **wider bands** for higher coverage. **LQR** remains informative at the **median** and for **interpretability** (linear coefficients), but its **systematic under-coverage** makes it unsuitable for tail risk without additional calibration. In operational settings, an ensemble that uses **QRF for tails** and **LQR/boosted medians at τ=0.50** could combine interpretability at the centre with robustness in the extremes.
+
+#### 6.4 Robustness and generalisability (what changes, what doesn’t)
+
+Sensitivity checks indicate that results are **qualitatively stable** to reasonable toggles: removing split-conformal produces **systematic under-coverage at 80%**; turning **off** decay weights **inflates widths** and **raises median pinball**; isotonic enforcement removes rare inversions and **reduces fold-to-fold variance**; half-life choices in **\[30, 90] bars** leave conclusions unchanged; **per-token** calibration yields more consistent cross-sectional behaviour than pooled calibration. These patterns suggest that the **core advantage** comes from the **QRF quantile mechanism plus light, state-aware calibration**, rather than from a single tuning trick.
+
+#### 6.5 Limitations and threats to validity (expanded)
+
+**Data completeness and informative missingness.** On-chain and market data for mid-cap tokens can be **intermittent** and **exchange-specific**. While imputation masks and token filtering mitigate the risk, missingness may correlate with **stress, liquidity withdrawals, or listing frictions**, biasing coverage locally. Relatedly, the study **excludes social/sentiment streams** (e.g., Twitter/Telegram/Reddit) that plausibly move community-driven tokens; their omission may limit tail detection around hype cycles.
+
+**Universe breadth and survivorship.** The token set focuses on **mid-caps with ≥3 months history**. This improves liquidity comparability but narrows ecological validity. Survivorship and listing bias can arise if delisted or failed tokens are under-represented, potentially **overstating robustness**.
+
+**Feature engineering and alignment.** Although features are lagged to avoid look-ahead, imperfect **timestamp alignment** across data sources (on-chain vs OHLCV vs cross-asset context) can introduce **jitter**. The engineering pipeline, while reproducible, remains **complex**; more rigorous **data versioning, unit tests, and schema checks** would reduce the operational error surface.
+
+**Serial dependence and effective sample size.** Overlapping 72-hour targets induce **autocorrelated errors**. HAC corrections in tests address, but do not fully remove, this dependence. The **calibration window (24 bars)** is necessarily small; per-token split-conformal **consumes degrees of freedom**, adding variance in thin samples.
+
+**Regime labelling and conditional guarantees.** The volatility regime is derived from **quintiles/proxies**; misclassification can **mute** the benefits of regime-aware offsets. Conformal guarantees are **marginal**, not fully **conditional** on features; consequently, pockets of **conditional under-coverage** (e.g., unusual microstructure states) can persist even when global coverage is near nominal.
+
+**Cost and execution realism.** Backtests include **fees/slippage**, but real deployment in crypto faces **venue fragmentation, MEV/latency, borrow constraints, inventory and impact**. These frictions can compress realized edge; more **execution-aware simulation** is needed for production estimates.
+
+**Model risk and maintenance.** Forests are **local** estimators; under distribution shift, quantiles may drift unless retraining and **calibration monitoring** are disciplined. In practice, calibration should be **re-estimated on a rolling basis** with drift alarms and fallback policies.
+
+Together, these limitations imply that while the statistical evidence is strong **in-sample for the chosen universe and period**, careful **operationalization** is required to transport the approach.
+
+#### 6.6 Practical value and a deployment path (from model to desk)
+
+The principal applied benefit is a **risk-aware sizing signal** derived from **calibrated intervals**. Because QRF provides **near-nominal 90% coverage** and **sharper bands** at like-for-like coverage, exposure rules that scale with $q_{0.50}/|q_{0.10}|$ naturally **de-leverage** when uncertainty widens and **scale up** when the interval is directional, improving risk-adjusted performance after costs (see § Application). Beyond directional trading, three concrete uses follow:
+
+* **Portfolio risk controls:** lower-tail quantiles supply a forward-looking crypto **VaR-style** constraint per token and for the aggregate book.
+* **Capital allocation:** cross-sectional ranking by **interval width** (or inverse) provides a dynamic **risk budget** allocator.
+* **Alerting:** large deviations of realized returns beyond $q_{0.05}$/$q_{0.95}$ can trigger **regime-shift flags** or **circuit-breaker** behaviour.
+
+A pragmatic deployment path is: (i) **shadow mode** with daily calibration monitoring (coverage drift alarms), (ii) **limited-risk rollout** with gross caps and kill-switches, (iii) periodic **K-fold conformal recalibration**, and (iv) integration of **execution models** (venue mix, inventory, borrow, impact).
+
+#### 6.7 Synthesis
+
+**Answer.** An adapted QRF **does** yield **sharper and better-calibrated** 72-hour intervals than linear and boosted baselines for mid-cap Solana tokens. It pairs **lower tail pinball** with **near-nominal 90% coverage** and **narrower bands at comparable coverage**; differences are **statistically significant** and **economically material** under risk-scaled sizing. LightGBM remains useful when **over-coverage** is required by policy; LQR contributes **interpretability at the median** but is unsuitable for tail control. The broader lesson is that **distribution-aware forests with light, state-aware calibration** are a practical basis for interval forecasting in turbulent digital asset markets.
+
+#### 6.8 Future directions
+
+1. **Calibration refinement.** Replace single split-conformal with **K-fold cross-conformal** and **conditional calibration** by volatility or liquidity bins to reduce small-sample variance and target the residual 80% under-coverage without dulling quiet-regime sharpness. A denser **τ-grid** (especially in the 60–80% region) would support smoother monotone rearrangement and more stable reliability curves.
+
+2. **Transportability and stress testing.** Re-estimate the full pipeline on (i) a **disjoint time span** and (ii) a **neighbouring ecosystem** (e.g., Arbitrum/Polygon mid-caps). Add **leave-one-token-out** tests to probe cross-asset generalisation and **out-of-family** tests on newly listed assets. Include **data quality stress tests** (e.g., synthetic gaps, latency) to quantify calibration resilience.
+
+3. **Execution-aware integration.** Move from signal backtests to **execution simulation** with venue routing, inventory/borrow limits, and market impact/MEV. Pair the interval signal with **dynamic cost budgets** and re-optimise sizing under realistic frictions. Explore **hybrid learners** (boosted median for τ=0.50 with QRF tails) and feature ablations (e.g., removing on-chain or cross-asset blocks) to better understand cost–benefit trade-offs.

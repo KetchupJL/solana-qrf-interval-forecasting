@@ -1,5 +1,0 @@
-# Discussion
-
-- What the evidence implies for crypto interval forecasting.
-- Where each model is preferable; limitations; data quality and missingness.
-- Links to literature and practice.

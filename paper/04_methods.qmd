@@ -1,20 +1,185 @@
-
 # Methods
 
-## Rolling evaluation
-- Blocked per-token: train 120, cal 24, test 6; step 6.
+This section formalises the modelling and evaluation frame used throughout the dissertation. It defines the target, records leakage controls, and specifies the rolling train–calibrate–test design under which all models are compared. **Notation and symbols follow Appendix \@ref(app-m0-notation).**
 
-## Models
-### QRF (core)
-- quantile_forest.RandomForestQuantileRegressor; tuned (Optuna); decay weights; τ ∈ {0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95}
-- Calibration: residual quantile offsets by regime; median bias correction; isotonic non-crossing.
+**Objective and target.** For each token $i$ at decision time $t$ (12-hour cadence), we forecast conditional quantiles of the **72-hour** log return
 
-### Baselines
-- LQR (statsmodels) same τ grid; non-crossing.
-- LightGBM quantile; conformal λ for 80% interval + interpolation.
+$$
+y_{i,t+6}=\log C_{i,t+6}-\log C_{i,t},
+$$
 
-## Metrics & tests
-- Pinball loss; empirical coverage + width; Diebold–Mariano tests; optional WIS.
+where $C_{i,t}$ denotes the 12-hour close. At quantile level $\tau\in(0,1)$, we learn predictors $\widehat q_\tau(x)$ using the **pinball loss** (see Appendix M1; Koenker & Bassett, 1978; Koenker, 2005).
 
-## Key equations
-- Pinball loss, DM statistic (list equations here with labels eq:pinball, eq:dm).
+**Panel scope and pooling.** Models are trained **per token** (no cross-sectional pooling). Within each rolling window, token $i$’s model uses only its own history. The design matrix is the pruned **feature-set v1 (29 predictors)** defined in §3, including categorical dummies where applicable.
+
+**Rolling evaluation protocol.** For each token we use a blocked walk-forward design:
+
+$$
+\text{Train}=120\text{ bars}\ (\approx60\text{ d})\ \Rightarrow\
+\text{Calibration}=24\text{ bars}\ \Rightarrow\
+\text{Test}=6\text{ bars}\ (72\text{ h}),
+$$
+
+advanced by **step = 6 bars** so that tests are non-overlapping.
+*PLACEHOLDER — Figure:* `(@fig-rolling)` Rolling scheme diagram (Train→Cal→Test, step = 6).
+
+**Calibration and non-crossing.** Base quantiles are made **monotone in $\tau$** via row-wise **isotonic rearrangement** (pool-adjacent-violators), then **central bands** are adjusted using **split-conformal prediction** (citations as above). Formal score definitions and the order-statistic inflation used for 80 % and 90 % bands are given in **Appendix M2** (see also listings `A-isotonic.py` and `A-conformal.py`).
+
+**Models and libraries.**
+-  **LQR:** linear quantile regression via `statsmodels.QuantReg`.
+- **LightGBM:** gradient-boosted trees with quantile objective per $\tau$.
+- **QRF:** Quantile Regression Forests; one shared forest predicts all $\tau$.
+Full software and environment details are reported in **Appendix R1** (`@tbl-software`).
+
+
+## Linear Quantile Regression (Baseline) Model
+
+For each $\tau\in\{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$ and token $i$, we fit an independent **Linear Quantile Regression** model that minimises the check (pinball) loss to estimate $\widehat q_\tau(x)$ (Koenker & Bassett, 1978; Koenker, 2005). The formal program is given in **Appendix @ref(app-l1-lqr)**.
+
+**Design matrix and preprocessing.** We use the pruned **feature-set v1 (29 predictors)** (§3). Numerical columns are **standardised on the Train slice only**; categorical indicators (e.g., day-of-week) are **one-hot** with an intercept. No additional within-pipeline transforms are applied.
+
+**Estimation.** Models are fit with `statsmodels.QuantReg`; implementation notes (solver and tolerances) appear in **Appendix @ref(app-r2-lqr-impl)**. There are no tree/boost hyperparameters; effective complexity is governed by the design matrix. Convergence was stable across rolling slices.
+
+**Non-crossing and calibration.** Because per-$\tau$ fits can cross, we enforce **monotonicity in $\tau$** via row-wise **isotonic rearrangement**; details in **Appendix @ref(app-m1-isotonic)**. Central prediction bands are then **split-conformally** adjusted; score definitions and order-statistic inflation are in **Appendix @ref(app-m2-conformal)**.
+
+**Rolling protocol.** Evaluation follows the **Train 120 → Cal 24 → Test 6** scheme with **step = 6** (non-overlapping Test windows) defined in §4.1.
+
+**Reporting.** We present **pinball loss** by $\tau$, **calibration curves** and **coverage/width** at 80 %/90 %, and **Diebold–Mariano** tests vs. LightGBM and QRF (test specification in §4.5 and **Appendix @ref(app-m4-tests)**).
+
+**Figures and appendix cross-references.**
+*Main text:* compact **LQR calibration** panel and a small **pinball-by-$\tau$** table.
+*PLACEHOLDER — Figure:* `(@fig-lqr-calib)` LQR calibration curve (Test).
+*PLACEHOLDER — Table:* `(@tbl-lqr-pinball)` Pinball loss by quantile (Test).
+*Appendix:* per-token **fan charts** and **coverage-by-token** bars; code listings.
+*PLACEHOLDER — Listings:* `A-LQR-fit.py` (fit & preprocessing), `A-conformal.py` (bands).
+
+**Why this baseline.** LQR provides a transparent **parametric** benchmark. In heavy-tailed, skewed crypto returns, its characteristic **tail mis-calibration** (cf. `@fig-lqr-calib`) motivates the flexible, non-parametric models in §§4.3–4.4.
+
+
+
+## 4.3 Gradient-boosted trees with quantile loss (LightGBM baseline)
+
+**Model (summary).** For each $\tau\in\{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$ and token, we fit an independent **LightGBM** regressor with the **quantile (pinball) objective**, yielding $\widehat q_\tau(x)$ (Koenker & Bassett, 1978; Ke et al., 2017). Formal boosting and gradient expressions appear in **Appendix @ref(app-g1-lgbm-obj)**.
+
+**Design matrix & preprocessing.** We use the pruned **feature-set v1 (29 predictors)** (§3). Numerics are **not scaled**; categoricals (e.g., `day_of_week`) are supplied via LightGBM’s native categorical handling (or one-hot where required). No monotone constraints are imposed. Determinism is enforced via fixed seeds and `deterministic=True`.
+
+**Variant and final choice.** Earlier variants trained a single **point** model and formed residual-based intervals. The **final baseline** trains **per-quantile** models and conformalises only the **central band** $[\widehat q_{0.10},\widehat q_{0.90}]$; the procedure is summarised below and detailed in **Appendix @ref(app-m2-conformal)**. This specification calibrated more reliably under regime shifts than residual intervals.
+
+**Non-crossing and calibration.** Because per-$\tau$ models are independent, we enforce monotonicity $\widehat q_{0.05}\le\cdots\le\widehat q_{0.95}$ via row-wise **isotonic rearrangement** (Appendix @ref(app-m1-isotonic)). The 80 % and 90 % central bands are then **split-conformally** adjusted using two-sided scores on the 24-bar calibration slice (Appendix @ref(app-m2-conformal)); a small one-sided tail tweak is applied only at 0.05/0.95.
+
+**Rolling protocol & early stopping.** Per token we use **Train 120 → Cal 24 → Test 6** with **step = 6** (§4.1). **Early stopping** monitors pinball loss on the calibration slice; hyper-parameters are tuned once in a global Optuna study and then **fixed** for evaluation.
+
+**Reporting.** We present **pinball loss** by $\tau$, **calibration curves** and **coverage/width** at 80 %/90 %, and **Diebold–Mariano** tests vs. LQR and QRF (specification in §4.5; formulas/code in Appendix @ref(app-m4-tests)).
+
+**Figures / tables (Methods-appropriate).**
+*Main text:* one compact **LightGBM calibration** panel; optionally a 1-row **pinball-by-$\tau$** table.
+*PLACEHOLDER — Figure:* `(@fig-lgbm-calib)` Calibration curve (Test, post split-conformal).
+*PLACEHOLDER — Table:* `(@tbl-lgbm-pinball)` Mean pinball loss by quantile.
+*Appendix:* per-token **fan charts**, **coverage-by-token** bars, and the **hyper-parameter table**.
+*PLACEHOLDER — Appendix table:* `(@tbl-lgbm-hparams)` Final quantile hyper-parameters by $\tau$.
+*PLACEHOLDER — Listings:* `A-LGBM-train.py` (fit), `A-conformal.py` (bands), `A-isotonic.py` (non-crossing).
+
+**Why this baseline.** Quantile LightGBM is a strong, non-linear comparator that is fast, interaction-aware, and—after split-conformalisation—near-nominal in coverage with comparatively tight bands, setting a demanding reference for QRF (§4.4).
+
+
+## 4.4 Quantile Regression Forests (core model)
+
+**Rationale.** Random-forest quantile regression estimates conditional quantiles **without** parametric distributional assumptions and is robust to skew, heavy tails, and high-order interactions (Meinshausen, 2006). Unlike per-$\tau$ boosted trees, a **single forest** supplies all requested quantiles from a shared leaf-wise conditional distribution, improving stability—especially in the tails.
+
+### 4.4.1 Estimator (summary)
+
+We use a single forest to obtain $\{\widehat q_\tau(x)\}$ by reading quantiles from the leaf-level conditional distribution at prediction time. In our implementation, **time-decay sample weights** enter both split selection and the leaf distributions. The full weight construction and the exact weighted-quantile estimator are provided in **Appendix @ref(app-m3-qrf)** (with equations).
+
+### 4.4.2 Implementation
+
+**Library.** `quantile-forest` (`RandomForestQuantileRegressor`), returning $\{\widehat q_\tau\}$ for any grid via `predict(..., quantiles=[...])`.
+
+**Final specification (fixed across folds).**
+`n_estimators = 1050`, `max_depth = 26`, `min_samples_leaf = 6`, `max_features = 0.98`,
+`bootstrap = True`, `n_jobs = -1`, `random_state = 42`,
+`sample_weight` = exponential **time-decay** (half-life **60 bars**; see §4.4.3).
+
+**Tuning.** Hyper-parameters were selected once via a **global Optuna** study (objective: mean pinball loss averaged over $\tau$ and folds) and then **fixed** for all rolling evaluations.
+*PLACEHOLDER — Appendix table:* `(@tbl-qrf-hparams)` Hyper-parameters, search ranges, and best values.
+*PLACEHOLDER — Appendix listing:* `A-QRF-fit.py` (training pipeline and seeds).
+
+**Design matrix.** Common **feature-set v1** (§3); numerics unscaled; categoricals one-hot in the preprocessing step.
+
+### 4.4.3 Recency weighting (time-decay)
+
+To reflect regime drift, each training observation at relative age $\Delta t$ bars is exponentially down-weighted (half-life **60 bars**); the normalised weights sum to one. The exact form used in code appears in **Appendix @ref(app-m3-qrf)** (and helper `compute_decay_weights` in `A-helpers.py`).
+
+### 4.4.4 Non-crossing and calibration (summary)
+
+**Monotone quantiles.** Because quantiles are computed independently on the shared forest, we enforce monotonicity in $\tau$ via row-wise **isotonic rearrangement**; details in **Appendix @ref(app-m1-isotonic)**.
+
+**Residual-quantile calibration (RQC).** On the **24-bar calibration** slice, we compute residuals against rearranged base quantiles and apply **regime-aware** (quiet/mid/volatile) residual-quantile offsets with mild winsorisation and an imputation filter. Procedure and formulas in **Appendix @ref(app-m2-conformal)** (RQC section).
+
+**Split-conformal bands (robustness).** As a robustness check, we also form **split-conformal** central bands via two-sided scores on the calibration slice; score and order-statistic definitions are in **Appendix @ref(app-m2-conformal)**.
+
+### 4.4.5 Computational choices and limitations
+
+* **Honesty/OOB.** No “honest” splitting; out-of-bag predictions used only for diagnostics.
+* **Leaf mass and depth.** Deep trees ($\texttt{max\_depth}=26$) capture non-linearities but can thin leaves; $\texttt{min\_samples\_leaf}=6$ maintains stability for tail quantiles.
+* **Shared forest.** One forest serves all $\tau$, reducing per-$\tau$ variability and easing non-crossing enforcement.
+
+### 4.4.6 Reporting and artefacts
+
+We report **pinball loss** at each $\tau$; **calibration curves** (empirical $\widehat F_\tau$ vs nominal $\tau$); **coverage/width** for 80 %/90 % bands; and **Diebold–Mariano** comparisons vs LQR and LightGBM (spec §4.5; implementation in **Appendix @ref(app-m4-tests)**). Prediction CSVs and per-fold losses are archived.
+*PLACEHOLDER — Appendix folder:* `A-Artifacts/` (per-fold `*_preds.csv`, `*_pinball.csv`).
+
+**Figures / tables (Methods-appropriate).**
+*Main text:* one **QRF fan chart** (representative token) and one **QRF calibration** panel.
+*PLACEHOLDER — Figure:* `(@fig-qrf-fan)` Fan chart (72-h bands, representative token).
+*PLACEHOLDER — Figure:* `(@fig-qrf-calib)` Calibration curve (Test).
+*Appendix:* coverage-by-token bars; extended fans; residual-offset diagnostics; **QRF hyper-parameter** table (`@tbl-qrf-hparams`).
+
+**Why QRF as the core model.** Heavy-tailed, skewed returns with interaction-rich predictors favour a non-parametric distribution estimator. The shared-forest quantile extraction, coupled with simple regime-aware residual calibration, delivered **well-calibrated** and **sharp** intervals in rolling tests while remaining transparent and reproducible.
+
+## 4.5 Validation, metrics, and statistical tests
+
+This section formalises the rolling evaluation and the criteria used to compare models; full notation and conventions follow **Appendix @ref(app-m0-notation)**.
+
+### 4.5.1 Rolling evaluation design
+
+All models are evaluated **per token** via a blocked, walk-forward procedure with **non-overlapping** Test windows:
+
+* **Train** = 120 bars (\~60 d) → **Calibrate** = 24 bars → **Test** = 6 bars (72 h),
+* **Step** = 6 bars (adjacent Tests do not overlap),
+* Features at time $t$ use only information available by the close of bar $t$ (§3); the target is $y_{t+6}$.
+
+Fit occurs on **Train** only; **non-crossing** (isotonic) and **calibration** (split-conformal or residual-quantile offsets) use **Cal** only. Performance is recorded on **Test** (strictly out-of-sample). We report both **micro** and **macro** averages across tokens; precise formulas and the rolling schematic are in **Appendix @ref(app-m0-notation)** (Fig. `@fig-rolling`).
+
+---
+
+### 4.5.2 Losses and calibration metrics
+
+* **Pinball (check) loss.** Primary score for each $\tau$; see definition in **Appendix @ref(app-m1-pinball)**. We report per-$\tau$ means (dispersion across tokens/folds) and a composite average over $\mathcal T=\{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$.
+
+* **Empirical coverage & average width.** For central $(1-\alpha)$ bands (after non-crossing + calibration) we report coverage, average width, **coverage error** $|\widehat{\mathrm{cov}}-(1-\alpha)|$, and **conditional coverage** by predicted-width deciles. Exact formulas appear in **Appendix @ref(app-m5-metrics)**.
+
+* **Quantile reliability / calibration curves.** We plot empirical hit-rates $\widehat F_\tau$ against nominal $\tau$; perfect calibration lies on the 45° line. Formal definition is in **Appendix @ref(app-m5-metrics)**.
+
+* **Optional proper scoring rule.** We compute the **interval score** (Gneiting & Raftery, 2007) for completeness; see **Appendix @ref(app-m5-metrics)**. (CRPS links are noted there.)
+
+A summary of metrics and reporting conventions appears in **Table `@tbl-metrics-defs` (Appendix)**.
+
+---
+
+### 4.5.3 Statistical comparisons
+
+Pairwise comparisons use **Diebold–Mariano** tests on loss differentials with **Newey–West** HAC variance and the **Harvey–Leybourne–Newbold** small-sample correction. We conduct **two-sided** tests and control multiplicity across $\tau$ using **Benjamini–Hochberg** FDR at $q=0.10$ (Holm–Bonferroni reported as strict bounds). Full formulas, HAC settings, and code are provided in **Appendix @ref(app-m4-tests)** and listing `A-DM-HAC.py`.
+
+---
+
+### 4.5.4 Placement of figures and tables (handoff to Results)
+
+**Main text (limit to 3–4 items):**
+
+* **Calibration curves** (one panel per model): `@fig-lqr-calib`, `@fig-lgbm-calib`, `@fig-qrf-calib`.
+* **Mean pinball loss by $\tau$** (compact table): `@tbl-pinball-by-tau`.
+* **Representative fan chart** (72-h band adaptivity): `@fig-fan-repr`.
+* **Coverage/width** summary (80%/90%): `@tbl-cov-width`.
+
+**Appendix (diagnostics & reproducibility):** Coverage-by-token bars, extended fan charts, pinball dispersion across folds, and **DM test** tables (with HAC lag and HLN factor). Listings for calibration, rearrangement, tests, and the environment file: `A-conformal.py`, `A-isotonic.py`, `A-DM-HAC.py`, `A-env.txt`.
+

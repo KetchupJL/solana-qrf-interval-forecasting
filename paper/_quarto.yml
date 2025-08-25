@@ -13,17 +13,19 @@ book:
     - 04_methods.qmd
     - 05_results.qmd
     - 06_trading.qmd
-    - 07_robustness.qmd
-    - 08_discussion.qmd
-    - 09_conclusion.qmd
-    - A1_data_appendix.qmd
-    - A2_models_appendix.qmd
-    - A3_extra_figs.qmd 
+    - 07_discussion.qmd
+    - 08_conclusion.qmd
+  appendices:  
+    - appendices/A1_data_appendix.qmd
+    - appendices/A2_models_appendix.qmd
+    - appendices/A3_extra_figs.qmd 
+
 
 format:
   pdf:
     documentclass: scrreprt
     pdf-engine: xelatex
+    default-image-extension: pdf
     toc: true
     papersize: a4
     number-sections: true

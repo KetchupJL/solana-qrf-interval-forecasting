@@ -1,0 +1,8 @@
+any additional overlays, reliability/PIT plots, etc.
+
+
+### Appendix R1 — Software and environment {#app-r1-software}
+
+*PLACEHOLDER — Table:* `(@tbl-software)` *Software inventory and versions used in this study.*
+Columns: *Package* | *Version* | *Notes (objective/solver, deterministic flags)*.
+Populate from your `pip freeze` or lockfile to ensure reproducibility.
