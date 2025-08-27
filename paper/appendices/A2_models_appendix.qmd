@@ -1,449 +1,313 @@
-### Appendix 2 — Notation and basic definitions (for §4.1) {#app-m2-notation}
+# Appendix 2: Methodology Appendix
 
-**Conditional quantile.**
+This appendix collects the notation, model definitions, calibration procedures, metrics, and statistical tests referenced in Chapter 4. Hyper-parameter tables, software details, and the moved feature dictionary table are also registered here for cross-referencing.
 
+#### Notation & rolling design {#app-m0-notation}
+
+**Indices and data.** At 12-hour index $t$, let features be $x_t\in\mathbb{R}^p$ and the 72-hour ahead target be $y_t$. For a quantile level $\tau\in(0,1)$, the conditional quantile is $q_\tau(x)$ and its estimator is $\widehat q_\tau(x)$. The quantile grid is $\mathcal T=\{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$.
+
+**Rolling windows.** For each token, non-overlapping **Test** windows are produced by stepping 6 bars through a **Train–Calibrate–Test** split:
+- Train: 120 bars (~60 days)
+- Calibrate: 24 bars (used only for non-crossing and calibration)
+- Test: 6 bars (72 h), step = 6 bars
+
+**Causality.** Features at time $t$ use only information up to the $t$ close; the target is $y_{t+6}$.
+
+**Averaging.** For a per-prediction loss $\ell_{i,t}$ (token $i$, time $t$):
 $$
-q_\tau(x)=\inf\{y:\,F_{Y\mid X}(y\mid x)\ge\tau\}.
+\text{micro}=\frac{\sum_i\sum_{t\in\mathrm{Test}_i}\ell_{i,t}}{\sum_i|\mathrm{Test}_i|},
+\qquad
+\text{macro}=\frac{1}{N}\sum_{i=1}^N \left(\frac{1}{|\mathrm{Test}_i|}\sum_{t\in\mathrm{Test}_i}\ell_{i,t}\right).
 $$
-
-We denote model predictions by $\widehat q_\tau(x)$ for $\tau\in\{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$.
-
-**Rolling schematic.**
-*PLACEHOLDER — Figure:* `(@fig-rolling)` Rolling Train→Cal→Test schematic (Train 120, Cal 24, Test 6, step = 6).
 
 ---
 
-### Appendix M1 — Pinball loss (for §4.1) {#app-m1-pinball}
+**Pinball loss {#app-m1-pinball}**
 
-**Definition (check loss; Koenker & Bassett, 1978; Koenker, 2005).**
+**Definition (Koenker & Bassett, 1978).**  For prediction $\widehat q_{\tau}(x)$ and residual $u=y-\widehat q_{\tau}(x)$,
 
 $$
-\label{eq-pinball}
-\rho_\tau(u)=u\big(\tau-\mathbf{1}\{u<0\}\big),\qquad u=y-\widehat q_\tau(x).
+\rho_{\tau}(u) = u\big(\tau - \mathbf{1}\{u<0\}\big).
 $$
 
-This is the objective minimised by LQR and used as the evaluation loss throughout.
+This loss is minimized by Linear Quantile Regression and is the primary evaluation metric for all models.
 
 ---
 
-### Appendix M2 — Non-crossing and split-conformal details (for §4.1) {#app-m2-calibration}
+**Pinball loss & non-crossing {#app-m1-pinball}**
 
-**Non-crossing via isotonic rearrangement.** For a grid $\tau_1<\cdots<\tau_K$ and raw vector $(\widehat q_{\tau_1},\ldots,\widehat q_{\tau_K})$, compute
-
+**Pinball loss.** For residual $u$, 
 $$
-\label{eq-isotonic}
-\widetilde q_{\tau_k}
-=\arg\min_{g:\ \text{nondecreasing}}
-\sum_{k=1}^{K}\left(\widehat q_{\tau_k}-g(\tau_k)\right)^2,
+\rho_\tau(u) \;=\; u\big(\tau-\mathbf{1}\{u<0\}\big),
+\qquad
+\text{and}\quad 
+\text{Pinball}_\tau=\frac{1}{T_\text{test}}\sum_{t\in\mathrm{Test}}\rho_\tau\!\big(y_t-\widehat q_\tau(x_t)\big).
 $$
-
-solved by the pool-adjacent-violators algorithm. The rearranged $\widetilde q_{\tau}$ are monotone in $\tau$.
-
-**Split-conformal central bands.** On the calibration window of size $m$, define two-sided scores
-
-$$
-\label{eq-conformal-score}
-s_t=\max\{\widetilde q_{\ell}(x_t)-y_t,\; y_t-\widetilde q_{u}(x_t)\},\quad t=1,\ldots,m,
-$$
-
-and let
-
-$$
-\label{eq-conformal-delta}
-\delta_\alpha = s_{(\lceil (m+1)(1-\alpha)\rceil)}
-$$
-
-be the order statistic of $\{s_t\}$. The conformalised interval is
-
-$$
-\label{eq-conformal-band}
-\big[\ \widetilde q_{\ell}(x)-\delta_\alpha,\ \widetilde q_{u}(x)+\delta_\alpha\ \big],
-$$
-
-applied for **80 %** with $(\ell,u)=(0.10,0.90)$ and for **90 %** with $(0.05,0.95)$.
-*Appendix listings:* `A-isotonic.py` (rearrangement), `A-conformal.py` (score & inflation).
 
 ---
 
-### Appendix M4 — Statistical tests referenced in §4.1 {#app-m4-tests}
+**Isotonic rearrangement {#app-m1-isotonic}**
 
-We compare models using **Diebold–Mariano** tests on loss differentials with **Newey–West** HAC variance and the **Harvey–Leybourne–Newbold** small-sample correction. Full formulas and the exact implementation are provided in listing `A-DM-HAC.py`; settings (lags, d.f., correction) are summarised in `(@tbl-dm-specs)`.
+Given raw $\{\widehat q_{\tau_k}(x)\}_{k=1}^K$ at increasing $\{\tau_k\}$, the non-decreasing projection $\{\tilde q_{\tau_k}(x)\}$ solves
+$$
+\tilde q_{\tau_k}(x) \;=\; \operatorname*{arg\,min}_{g:\,\text{nondecreasing}} 
+\sum_{k=1}^K \big(\widehat q_{\tau_k}(x)-g(\tau_k)\big)^2,
+\qquad
+\tilde q_{\tau_1}(x)\le\cdots\le \tilde q_{\tau_K}(x).
+$$
 
 ---
 
-### Appendix R1 — Software and environment {#app-r1-software}
+**Split-conformal calibration of central bands {#app-m2-conformal}**
 
-*PLACEHOLDER — Table:* `(@tbl-software)` *Software inventory and versions used in this study.*
-Columns: *Package* | *Version* | *Notes (objective/solver, deterministic flags)*.
-Populate from your `pip freeze` or lockfile to ensure reproducibility.
+On a calibration slice of size $m$ with rearranged base quantiles $\tilde q_\ell,\tilde q_u$, define two-sided scores
+$$
+s_t=\max\{\tilde q_\ell(x_t)-y_t,\; y_t-\tilde q_u(x_t)\},\quad t=1,\dots,m,
+$$
+and the order-statistic inflation 
+$$
+\delta_\alpha = s_{(\lceil (m+1)(1-\alpha)\rceil)}.
+$$
+The $(1-\alpha)$ conformalised interval is
+$$
+\big[\tilde q_\ell(x)-\delta_\alpha,\;\tilde q_u(x)+\delta_\alpha\big],
+$$
+which attains finite-sample marginal coverage $\ge 1-\alpha$ under exchangeability. (One-sided tails are analogous.)
 
 ---
 
+## Model Formulations
 
-### Appendix L1 — Linear Quantile Regression details {#app-l1-lqr}
+**Quantile Regression Forest details {#app-m3-qrf}**
 
-**Optimisation problem (Koenker–Bassett).**
-
-$$
-\label{eq-lqr-program}
-\widehat{\beta}_\tau
-=\arg\min_{\beta\in\mathbb{R}^{p+1}}
-\sum_{t\in\mathcal{T}_{\text{train}}}
-\rho_\tau\!\big(y_{i,t+6}-[1,x_{i,t}]^\top\beta\big),\qquad
-\widehat q_\tau(x)=[1,x]^\top\widehat{\beta}_\tau,
-$$
-
-with the **pinball loss**
+Let $\{(x_j,y_j)\}_{j=1}^n$ be training pairs and let $\mathcal F = \{ T_b \}_{b=1}^B$ be a forest of $B$ trees.  For query $x$, each tree assigns $x$ to a leaf $\mathcal L_b(x)$ containing a subset of training points.  Define weights
 
 $$
-\label{eq-pinball-app}
-\rho_\tau(u)=u\big(\tau-\mathbf{1}\{u<0\}\big).
+ w_j(x) = \frac{1}{B} \sum_{b=1}^{B} \frac{\mathbf{1}\{ x_j \in \mathcal L_b(x) \}}{ |\mathcal L_b(x)| },
+ \qquad
+ \sum_{j=1}^n w_j(x) = 1,
 $$
 
-We estimate $\{\widehat q_\tau\}$ independently for $\tau\in\{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$.
+and estimate the conditional CDF as $\widehat F(y\mid x) = \sum_{j=1}^n w_j(x)\,\mathbf{1}\{ y_j \le y \}$.  The conditional quantile estimator is
 
-**Design notes.** Standardisation is fit on Train and applied to Cal/Test; categoricals are one-hot with an intercept. No additional within-pipeline transforms are used.
+$$
+\widehat q_{\tau}(x) = \inf\big\{ z : \widehat F(z\mid x) \ge \tau \big\}.
+$$
+
+**Time‑decay reweighting.**  To emphasise recent observations, sample weights $\pi_j$ are applied when training each tree.  For relative age $\Delta t$, the weight decays exponentially with half‑life $h$ bars:
+
+$$
+\pi_j \propto 2^{-\Delta t/h},
+\quad\text{normalised so that}\quad \sum_j \pi_j = 1.
+$$
+These weights enter both split selection and the leaf distributions.  The final forest hyper‑parameters and search ranges are summarised in Table 1.
+
+
+**Notes on QRF implementation and calibration {#app-m3-qrf-notes}**
+
+In addition to the estimator definitions given in Appendix M3, this section records details of the Quantile Regression Forest implementation and calibration:
+
+- **Hyper‑parameters and search.**  The search ranges and final values for `n_estimators`, `max_depth`, `min_samples_leaf`, `max_features`, `bootstrap`, and `random_state` are summarised in Table `@tbl-qrf-hparams`.  A global Optuna study minimising mean pinball loss selected the winning configuration.
+- **Calibration.**  Residual‑quantile calibration (RQC) offsets are computed separately for each regime (quiet/mid/volatile).  Split‑conformal bands are also formed as a robustness check.  
+- **Implementation notes.**  A single shared forest supplies quantiles at all levels; per‑tree sample weights implement exponential time‑decay.  Code is provided in the listings referenced below.
+
+**See appendix 4 for all figures and tables related to QRF**
+
+![QRF v3 reliability by regime; each line shows empirical hit-rate vs nominal τ for a regime; ideal line shown.](figures/final/fig-qrf-v3-reliability-by-regime.pdf){#fig-qrf-v3-reliability-by-regime fig-align="center" width="70%"}
+
+![QRF v1 mean pinball loss per quantile.](figures/final/fig-qrf-v1-pinball-mean.pdf){#fig-qrf-v1-pinball-mean fig-align="center" width="62%"}
+
+
+**QRF implementation notes {#app-r4-qrf-code}**
+
+See Appendix 5 for full Model code
+
+**QRF variants and hyper‑parameters {#app-t3-qrf-hparams}**
+
+This section collects the hyper‑parameter search ranges, final values and variant metrics for the Quantile Regression Forest (QRF) models referenced in Chapter 4.  Use this table to reproduce the model specifications and to understand the trade‑offs explored in the robustness checks.
+
+**Table 1**
+
+| Parameter            | Value                |
+|:---------------------|:---------------------|
+| n_estimators         | 1467                 |
+| max_depth            | 24                   |
+| min_samples_leaf     | 5                    |
+| max_features_choice  | fraction             |
+| max_features         | 0.9984302781608038   |
+
 
 ---
 
-### Appendix M1 — Non-crossing via isotonic rearrangement (referenced in §4.2) {#app-m1-isotonic}
+**Linear Quantile Regression optimisation {#app-l1-lqr}**
 
-For grid $\tau_1<\cdots<\tau_K$ and raw vector $(\widehat q_{\tau_1},\ldots,\widehat q_{\tau_K})$,
+**Problem statement.**  For each quantile level $\tau$ and feature vector $x$, LQR solves
 
 $$
-\label{eq-isotonic-app}
-\widetilde q_{\tau_k}
-=\arg\min_{g:\ \text{nondecreasing}}
-\sum_{k=1}^{K}\big(\widehat q_{\tau_k}-g(\tau_k)\big)^2,
+\widehat{\beta}_{\tau} = \arg\min_{\beta\in \mathbb{R}^{p+1}} \sum_{t\in\mathcal{T}_{\text{train}}} \rho_{\tau}\big( y_{t} - [1,x_{t}]^{\top}\beta \big),
+\quad
+\widehat q_{\tau}(x) = [1,x]^{\top} \widehat{\beta}_{\tau}.
 $$
 
-solved by the pool-adjacent-violators (PAV) algorithm. We apply this row-wise to enforce $\widetilde q_{0.05}\le\cdots\le\widetilde q_{0.95}$.
-*PLACEHOLDER — Listing:* `A-isotonic.py`.
+The pinball loss $\rho_{\tau}$ is defined in Appendix M1.  Each $\tau$ is fit independently.
+
+**Design notes.**  Numeric predictors are standardised using training statistics; categorical variables are one‑hot encoded with an intercept.  No further transformations are applied.  Convergence and solver settings for `statsmodels.QuantReg` are summarised below.
+
+![Linear-QR 72-hour forecast fan chart for the token BOME.](figures/final/fig-lqr-fan-longest.pdf){#fig-lqr-fan-longest fig-align="center" width="72%"}
+
+![Coverage of 80% prediction intervals across folds; dashed line marks nominal 80%.](figures/final/fig-lqr-coverage-80pi-hist.pdf){#fig-lqr-coverage-80pi-hist fig-align="center" width="62%"}
+
+![Linear-QR calibration: empirical vs nominal coverage (ideal line shown).](figures/final/fig-lqr-v1-calibration.pdf){#fig-lqr-calibration fig-align="center" width="64%"}
 
 ---
 
-### Appendix M2 — Split-conformal bands (referenced in §4.2) {#app-m2-conformal}
+**LightGBM quantile objective and boosting {#app-g1-lgbm-obj}**
 
-On a calibration window of size $m$, define two-sided scores
-
-$$
-\label{eq-conformal-score-app}
-s_t=\max\{\widetilde q_{\ell}(x_t)-y_t,\; y_t-\widetilde q_{u}(x_t)\},\quad t=1,\ldots,m,
-$$
-
-and let
+**Boosting update.**  Let $F_m^{(\tau)}(x)$ denote the stage‑$m$ prediction for quantile level $\tau$.  Gradient boosting updates via
 
 $$
-\label{eq-conformal-delta-app}
-\delta_\alpha=s_{(\lceil (m+1)(1-\alpha)\rceil)}.
+F_{m}^{(\tau)}(x) = F_{m-1}^{(\tau)}(x) + \eta\, f_{m}^{(\tau)}(x),
 $$
 
-The conformalised interval is
+where $f_{m}^{(\tau)}$ is a regression tree and $\eta\in(0,1]$ is the learning rate.
+
+**Negative gradient for the pinball loss.**  For residual $u_t = y_t - F_{m-1}^{(\tau)}(x_t)$,
 
 $$
-\label{eq-conformal-band-app}
-\big[\ \widetilde q_{\ell}(x)-\delta_\alpha,\ \widetilde q_{u}(x)+\delta_\alpha\ \big],
+ g_{t}^{(\tau)} = -\frac{\partial}{\partial \hat y}\,\rho_{\tau}(u_t)\Big|_{\hat y = F_{m-1}^{(\tau)}(x_t)} = \tau - \mathbf{1}\{ y_t < F_{m-1}^{(\tau)}(x_t) \}.
 $$
 
-used for **80 %** with $(\ell,u)=(0.10,0.90)$ and for **90 %** with $(0.05,0.95)$.
-*PLACEHOLDER — Listing:* `A-conformal.py`.
+LightGBM fits $f_{m}^{(\tau)}$ to $(x_t,g_t^{(\tau)})$ using histogram‑based splits and leaf‑wise growth; second‑order terms vanish for the pinball loss, so a first‑order update suffices.
+
+
+**Table 2 — LightGBM hyper‑parameters by quantile {#app-t2-lgbm-hparams}**
+
+| τ    | lr      | leaves | depth | min_leaf | feat_frac | bag_frac | bag_freq |   L1       |    L2      | gamma | iters |
+|:----:|:--------|------:|------:|---------:|----------:|---------:|---------:|-----------:|-----------:|------:|------:|
+| 0.05 | 0.01078 |   253 |     4 |       96 |     0.762 |    0.711 |        4 | 8.15e-06   | 2.09e-07   | 0.069 |  2449 |
+| 0.10 | 0.00622 |    91 |    13 |       37 |     0.862 |    0.714 |       15 | 2.6940     | 0.5684     | 0.172 |  7495 |
+| 0.25 | 0.00783 |    42 |     6 |       79 |     0.622 |    0.963 |       11 | 0.01731    | 0.8099     | 0.085 |  7999 |
+| 0.50 | 0.01376 |    56 |     5 |       22 |     0.960 |    0.796 |       11 | 3.95e-06   | 3.85e-07   | 0.333 |  7992 |
+| 0.75 | 0.05456 |    68 |     9 |       76 |     0.520 |    0.994 |        1 | 5.21e-08   | 1.94e-04   | 0.060 |  1095 |
+| 0.90 | 0.04030 |    96 |     7 |       78 |     0.909 |    0.445 |        2 | 3.49e-05   | 3.41e-05   | 0.191 |   218 |
+| 0.95 | 0.00617 |   201 |     4 |        8 |     0.776 |    0.990 |        3 | 0.00117    | 4.83e-06   | 0.162 |  3200 |
+
+
+![LightGBM-CQR v4 fan chart with central median and central interval around the median; realised series overlaid. Compared to the V3 and V2, this shows the tightest intervals](figures/final/fig-lgbm-v4-fan-bome.pdf){#fig-lgbm-v4-fan-bome fig-align="center" width="72%"}
+
+![Calibration of LightGBM-CQR v4: empirical CDF hits vs nominal τ; ideal line shown.](figures/final/fig-lgbm-v4-calibration.pdf){#fig-lgbm-v4-calibration fig-align="center" width="64%"}
+
+**See appendix 4 for all figures and tables related to QRF**
 
 ---
 
-### Appendix R2 — LQR implementation notes (solver, tolerances) {#app-r2-lqr-impl}
+### Statistical tests {#app-m4-tests}
 
-**Software.** `statsmodels.QuantReg` (version **\[fill in]**).
-**Solver/tolerances.** **\[confirm: interior-point / simplex / IRLS]**, library defaults for `max_iter`, convergence tolerance, and robust covariance (if used).
-**Reproducibility.** Deterministic pre-processing; fixed seeds for any random steps in cross-validation scaffolding.
-*PLACEHOLDER — Listing:* `A-LQR-fit.py` (pipeline construction, standardisation, fit).
+**C with HAC and HLN.** Let $d_t$ be the loss differential (e.g., pinball) between models $A$ and $B$ at the same $\tau$ on Test. With $\bar d=\tfrac{1}{T}\sum_t d_t$ and Bartlett-weighted Newey–West spectral estimate
+$$
+\widehat S_L \;=\; \widehat\gamma_0 + 2\sum_{\ell=1}^{L}\left(1-\frac{\ell}{L+1}\right)\widehat\gamma_\ell,
+\qquad
+\widehat\gamma_\ell=\frac{1}{T}\sum_{t=\ell+1}^{T}(d_t-\bar d)(d_{t-\ell}-\bar d),
+$$
+the DM statistic is
+$$
+\mathrm{DM} \;=\; \frac{\bar d}{\sqrt{\widehat S_L/T}}.
+$$
+Small-sample **Harvey–Leybourne–Newbold (HLN)** correction is applied to obtain $p$-values. Two-sided tests are used throughout.
+
+**Multiplicity.** Across multiple $\tau$ we control the false discovery rate with **Benjamini–Hochberg** at level $q$: sort p-values $p_{(1)}\le\cdots\le p_{(m)}$ and reject up to $k=\max\{i: p_{(i)}\le (i/m)q\}$. Holm–Bonferroni adjusted p-values are also reported.
+
+
+**The Model Confidence Set**
+
+The Model Confidence Set is an iterative, bootstrap-based procedure that tests the null of **Equal Predictive Ability** across models and sequentially removes the worst performer until the null cannot be rejected, yielding a **superior set** at confidence level $1-\alpha$. It controls for multiple comparisons and model-selection uncertainty, so instead of declaring a single “winner” it returns a statistically validated set; we apply it to rolling **pinball-loss** series across models and quantiles.
+
 
 ---
 
-### Appendix F — Additional LQR diagnostics (figures/tables)
+### Metric definitions {#app-m5-metrics}
 
-* *PLACEHOLDER — Figure:* `(@fig-lqr-fans-appendix)` Per-token fan charts (72-h bands).
-* *PLACEHOLDER — Figure:* `(@fig-lqr-coverage-appendix)` Coverage by token at 80 % / 90 %.
-* *PLACEHOLDER — Table:*  `(@tbl-lqr-pinball)` Pinball loss by quantile (token-wise and aggregated).
-
-
-## 📎 2) Appendix content moved from §4.3 (drop-in)
-
-> Place these blocks in your Appendix. Labels match the in-text refs and your Quarto style.
-
-### Appendix G1 — LightGBM quantile objective & boosting update {#app-g1-lgbm-obj}
-
-**Boosting update.** Let $F_m^{(\tau)}(x)$ be the stage-$m$ predictor for quantile level $\tau$:
+**Coverage and width.**  For a central $(1-\alpha)$ interval $[L_t,U_t]$ on a Test window of length $T$, define
 
 $$
-\label{eq-lgbm-update}
-F^{(\tau)}_{m}(x)=F^{(\tau)}_{m-1}(x)+\eta\, f^{(\tau)}_m(x),
+\widehat{\mathrm{cov}} = \frac{1}{T} \sum_{t=1}^{T} \mathbf{1}\{ L_t \le y_t \le U_t \},
+\qquad
+\overline{\mathrm{width}} = \frac{1}{T} \sum_{t=1}^{T} (U_t - L_t).
 $$
 
-where $f^{(\tau)}_m$ is a regression tree and $\eta\in(0,1]$ is the shrinkage rate.
+We also report the **coverage error** $|\widehat{\mathrm{cov}} - (1-\alpha)|$ and **conditional coverage** by deciles of predicted width.
 
-**Negative gradient for pinball loss** (Koenker & Bassett, 1978; Ke et al., 2017):
+**Quantile reliability.**  The empirical hit‑rate at quantile level $\tau$ is
 
 $$
-\label{eq-lgbm-grad}
-g_t^{(\tau)}
-= -\frac{\partial}{\partial \hat y}\,\rho_\tau\!\big(y_t-\hat y\big)\Big|_{\hat y=F^{(\tau)}_{m-1}(x_t)}
-= \tau-\mathbf{1}\{y_t<F^{(\tau)}_{m-1}(x_t)\}.
+\widehat F_{\tau} = \frac{1}{T} \sum_{t=1}^{T} \mathbf{1}\{ y_t \le \widehat q_{\tau}(x_t) \}.
 $$
+Perfect calibration corresponds to $\widehat F_{\tau} = \tau$ for all $\tau$.
 
-LightGBM fits $f^{(\tau)}_m$ to $\{(x_t,g_t^{(\tau)})\}$ using histogram-based splits and leaf-wise growth with depth/leaf controls.
+**Interval score**  For a central interval $[L_t,U_t]$ with nominal coverage $1-\alpha$ and observation $y_t$, the interval score (Gneiting & Raftery, 2007) is
 
-**Design & determinism notes.** Numerics unscaled; categoricals passed natively (or one-hot if needed). Seeds are fixed and `deterministic=True` is enabled to stabilise histogram binning, bagging, and feature subsampling.
-
-
-### Appendix T2 — LightGBM hyper-parameters by quantile {#app-t2-lgbm-hparams}
-
-*PLACEHOLDER — Table:* `(@tbl-lgbm-hparams)` *Final LightGBM quantile hyper-parameters by $\tau$.*
-Columns: $\tau$ | `num_leaves` | `max_depth` | `min_data_in_leaf` | `feature_fraction` | `bagging_fraction` | `lambda_l1` | `lambda_l2` | `learning_rate` | `min_split_gain` | `best_iteration_` (median \[IQR] across folds).
-Populate from `best_lgb_cqr_params.json` and fold summaries.
+$$
+S_{\alpha}(L_t,U_t;y_t) = (U_t-L_t) + \frac{2}{\alpha} (L_t - y_t)\,\mathbf{1}\{ y_t < L_t \} + \frac{2}{\alpha} (y_t - U_t)\,\mathbf{1}\{ y_t > U_t \}.
+$$
+Lower values indicate sharper, better‑calibrated intervals.
 
 ---
 
-### Appendix M1 — Non-crossing via isotonic rearrangement (referenced) {#app-m1-isotonic}
+**Table 3**
 
-See definition and PAV projection in Appendix M1 (applies identically to LightGBM outputs).
-*PLACEHOLDER — Listing:* `A-isotonic.py`.
+| Metric             | Definition (short)                                                                                 | Notes                      |
+|:-------------------|:----------------------------------------------------------------------------------------------------|:---------------------------|
+| Pinball loss       | $\rho_{\tau}(u)=u\big(\tau-\mathbf{1}\{u<0\}\big),\; u=y-\widehat q_{\tau}(x)$                     | Per-$\tau$; mean over $\mathcal T$ |
+| Coverage           | $\widehat{\mathrm{cov}}=\tfrac{1}{T}\sum_{t=1}^{T}\mathbf{1}\{L_t\le y_t\le U_t\}$                  | Target $1-\alpha$          |
+| Width              | $\overline{\mathrm{width}}=\tfrac{1}{T}\sum_{t=1}^{T}(U_t-L_t)$                                     | Pair with coverage         |
+| Coverage error     | $\lvert \widehat{\mathrm{cov}}-(1-\alpha)\rvert$                                                    | Lower is better            |
+| Reliability        | $\widehat F_{\tau}=\tfrac{1}{T}\sum_{t=1}^{T}\mathbf{1}\{y_t\le \widehat q_{\tau}(x_t)\}$           | Plot $\widehat F_{\tau}$ vs $\tau$ |
+| Interval score     | $S_{\alpha}=(U-L)+\tfrac{2}{\alpha}(L-y)\mathbf{1}\{y<L\}+\tfrac{2}{\alpha}(y-U)\mathbf{1}\{y>U\}$ | Optional                   |
 
----
 
-### Appendix M2 — Split-conformal bands (referenced) {#app-m2-conformal}
-
-Two-sided score $s_t$ and order-statistic inflation $\delta_\alpha$ used to conformalise the central bands; full definitions in Appendix M2. We apply a **one-sided tail tweak** at $\tau\in\{0.05,0.95\}$ using the $(1-\alpha/2)$ quantile of positive residuals on the calibration slice for cosmetic stability.
-*PLACEHOLDER — Listing:* `A-conformal.py`.
-
----
-
-### Appendix R3 — LightGBM implementation (code) {#app-r3-lgbm-code}
-
-*PLACEHOLDER — Listings:*
-
-* `A-LGBM-train.py` (pipeline, categorical handling, early stopping on Cal),
-* `A-conformal.py` (score computation and band inflation),
-* `A-isotonic.py` (row-wise PAV projection).
+This table summarises the metrics referenced in the Methods and Results chapters.  See the definitions above and **Appendix @ref(app-m5-metrics)** for derivations.
 
 ---
 
-### Appendix F — Additional LightGBM diagnostics (figures)
-
-* *PLACEHOLDER — Figure:* `(@fig-lgbm-fans-appendix)` Per-token fan charts (72-h bands).
-* *PLACEHOLDER — Figure:* `(@fig-lgbm-coverage-appendix)` Coverage by token at 80 % / 90 %.
-* *PLACEHOLDER — Table:*  `(@tbl-lgbm-pinball)` Pinball loss by quantile (token-wise and aggregated).
-
----
-
-**Quarto tips**
-
-* Keep anchors `#app-g1-lgbm-obj`, `#app-t2-lgbm-hparams`, `#app-r3-lgbm-code` so in-text refs resolve.
-* If you later compress even more, you can drop the main-text calibration figure and keep only the pointer to `@fig-lgbm-calib` in Results.
-
-
-
-### Appendix M3 — QRF estimator and time-decay weights (for §4.4) {#app-m3-qrf}
-
-**Forest weights and quantile estimator** (Meinshausen, 2006). Let $\{(x_j,y_j)\}_{j=1}^{n}$ be training pairs and $\mathcal F=\{T_b\}_{b=1}^{B}$ the forest. For query $x$,
-
-$$
-\label{eq-qrf-weights}
-w_j(x)=\frac{1}{B}\sum_{b=1}^{B}\frac{\mathbf{1}\{x_j\in\mathcal L_b(x)\}}{|\mathcal L_b(x)|},
-\qquad \sum_{j=1}^n w_j(x)=1,
-$$
-
-and the conditional **quantile estimator** is the weighted empirical quantile
-
-$$
-\label{eq-qrf-quantile}
-\widehat q_\tau(x)=\inf\Big\{z:\sum_{j=1}^{n} w_j(x)\,\mathbf{1}\{y_j\le z\}\ge \tau\Big\}.
-$$
-
-**Reweighting by time-decay.** With sample weights $\pi_j$ (recency),
-
-$$
-\label{eq-qrf-reweight}
-\tilde w_j(x)=\frac{\pi_j\,w_j(x)}{\sum_{k=1}^n\pi_k\,w_k(x)},\qquad
-\widehat q_\tau(x)=\inf\Big\{z:\sum_j \tilde w_j(x)\mathbf{1}\{y_j\le z\}\ge \tau\Big\}.
-$$
-
-**Time-decay schedule (half-life 60 bars).** For an observation at relative age $\Delta t$,
-
-$$
-\label{eq-decay}
-\pi_t \propto \exp\!\Big(-\ln 2\,\frac{\Delta t}{60}\Big),\qquad \sum_t \pi_t=1.
-$$
-
-These weights influence both split scoring and the leaf distributions.
-*PLACEHOLDER — Listing:* `A-helpers.py` (`compute_decay_weights`).
-
-**Notes.** Splits use squared-error impurity; quantiles are read post-fit from leaf distributions. The kernel-like interpretation of $w_j(x)$ follows Athey, Tibshirani & Wager (2019).
-
----
-
-### Appendix M2 — Calibration details (RQC and split-conformal) {#app-m2-conformal}
-
-**Residual-quantile calibration (RQC).** On the **24-bar** calibration slice, with rearranged base quantiles $\widetilde q_{\tau}$,
-
-$$
-\label{eq-rqc-resid}
-r_{\tau,t}=y_t-\widetilde q_{\tau}(x_t),\qquad \tau\in\{0.10,0.50,0.90\}.
-$$
-
-Estimate offsets as empirical residual quantiles **by regime** (quiet/mid/volatile), after winsorising residuals (median $\pm 5\times$IQR) and excluding rows with **>30 %** imputed features. Apply offsets to Test predictions and **re-apply isotonic** across $\tau$.
-*PLACEHOLDER — Listing:* `A-QRF-calibration.py` (RQC).
-
-**Split-conformal central bands (robustness).** On the same calibration slice, define two-sided scores
-
-$$
-\label{eq-conformal-score-qrf}
-s_t=\max\{\widetilde q_{0.10}(x_t)-y_t,\ y_t-\widetilde q_{0.90}(x_t)\},\quad t=1,\ldots,m,
-$$
-
-and inflation
-
-$$
-\label{eq-conformal-delta-qrf}
-\delta_\alpha=s_{(\lceil (m+1)(1-\alpha)\rceil)}.
-$$
-
-Conformalised bands:
-
-$$
-\label{eq-conformal-band-qrf}
-[\widetilde q_{0.10}-\delta_{0.20},\ \widetilde q_{0.90}+\delta_{0.20}]
-\quad\text{and}\quad
-[\widetilde q_{0.05}-\delta_{0.10},\ \widetilde q_{0.95}+\delta_{0.10}],
-$$
-
-which yield finite-sample marginal coverage under exchangeability (Vovk et al., 2005; Romano et al., 2019).
-*PLACEHOLDER — Listing:* `A-conformal.py` (two-sided split-conformal).
-*Cross-ref:* PAV rearrangement in **Appendix @ref(app-m1-isotonic)**.
-
----
-
-### Appendix T3 — QRF hyper-parameters and search {#app-t3-qrf-hparams}
-
-*PLACEHOLDER — Table:* `(@tbl-qrf-hparams)` *Search ranges and final values.*
-Columns: `n_estimators`, `max_depth`, `min_samples_leaf`, `max_features`, `bootstrap`, `random_state`; Optuna ranges and the winning configuration.
-
----
-
-### Appendix R4 — QRF implementation (code) {#app-r4-qrf-code}
-
-*PLACEHOLDER — Listings:*
-
-* `A-QRF-fit.py` (pipeline, seeds, `sample_weight` injection)
-* `A-QRF-calibration.py` (RQC offsets, regime labelling, winsorisation)
-* `A-isotonic.py` (row-wise PAV projection)
-
----
-
-### Appendix F — Additional QRF diagnostics (figures)
-
-* *PLACEHOLDER — Figure:* `(@fig-qrf-fans-appendix)` Per-token fan charts (72-h bands).
-* *PLACEHOLDER — Figure:* `(@fig-qrf-coverage-appendix)` Coverage by token at 80 % / 90 %.
-* *PLACEHOLDER — Figure:* `(@fig-qrf-rqc-diagnostics)` RQC residual distributions and regime offsets.
-
-
-
-
-
-## 📎 2) Appendix blocks for §4.5 (drop-in)
-
-### Appendix M0 — Rolling design & averaging conventions (for §4.5) {#app-m0-notation}
-
-**Rolling schematic.**
-*PLACEHOLDER — Figure:* `(@fig-rolling)` Train 120 → Cal 24 → Test 6, step = 6.
-
-**Averaging across tokens.** For metric $\ell$,
-
-$$
-\label{eq-micro-macro}
-\text{micro}=\frac{\sum_{i}\sum_{t\in \text{Test}_i}\ell_{i,t}}{\sum_{i}|\text{Test}_i|},\qquad
-\text{macro}=\frac{1}{N}\sum_{i=1}^{N}\frac{1}{|\text{Test}_i|}\sum_{t\in \text{Test}_i}\ell_{i,t}.
-$$
-
-These are used for pinball, coverage error, and width unless stated otherwise.
-
----
-
-### Appendix M1 — Pinball (check) loss (referenced in §4.5) {#app-m1-pinball}
-
-$$
-\label{eq-pinball}
-\rho_\tau(u)=u\big(\tau-\mathbf{1}\{u<0\}\big),\qquad u=y-\widehat q_\tau(x).
-$$
-
-We average per Test window and then aggregate by micro/macro definitions in $\eqref{eq-micro-macro}$.
-
----
-
-### Appendix M5 — Metric formulas & calibration definitions (for §4.5) {#app-m5-metrics}
-
-**Coverage and width (central $(1-\alpha)$ band $[L_t,U_t]$).**
-
-$$
-\label{eq-coverage-width}
-\widehat{\mathrm{cov}}=\frac{1}{T_{\text{test}}}\sum_t \mathbf{1}\{L_t\le y_t\le U_t\},\qquad
-\overline{\mathrm{width}}=\frac{1}{T_{\text{test}}}\sum_t (U_t-L_t).
-$$
-
-We also report **coverage error** $|\widehat{\mathrm{cov}}-(1-\alpha)|$ and **conditional coverage** by deciles of predicted width.
-
-**Quantile reliability (hit-rate).**
-
-$$
-\label{eq-reliability}
-\widehat F_\tau=\frac{1}{T_{\text{test}}}\sum_t \mathbf{1}\{y_t\le \widehat q_\tau(x_t)\}.
-$$
-
-**Interval score** (Gneiting & Raftery, 2007) for central $(1-\alpha)$ bands:
-
-$$
-\label{eq-interval-score}
-\mathrm{IS}_\alpha(L_t,U_t;y_t)=(U_t-L_t) + \tfrac{2}{\alpha}(L_t-y_t)\mathbf{1}\{y_t<L_t\}
-+ \tfrac{2}{\alpha}(y_t-U_t)\mathbf{1}\{y_t>U_t\}.
-$$
-
-(Links to CRPS follow by integrating $\mathrm{IS}_\alpha$ over $\alpha$.)
-
-*PLACEHOLDER — Table:* `(@tbl-metrics-defs)` Summary of metrics and reporting conventions.
-
----
-
-### Appendix M4 — Statistical tests (DM, HAC, HLN) & multiplicity (for §4.5) {#app-m4-tests}
-
-**Loss differential and DM statistic** (Diebold & Mariano, 1995):
-
-$$
-\label{eq-dm}
-d_t=\rho_\tau\!\big(y_t-\widehat q_\tau^{(A)}(x_t)\big)-\rho_\tau\!\big(y_t-\widehat q_\tau^{(B)}(x_t)\big),\quad
-\mathrm{DM}=\frac{\bar d}{\sqrt{\widehat\omega/T}},
-$$
-
-with **Newey–West** HAC long-run variance (Bartlett kernel, lag $\ell$):
-
-$$
-\label{eq-nw}
-\widehat\omega=\widehat\gamma_0+2\sum_{k=1}^{\ell}\!\Big(1-\frac{k}{\ell+1}\Big)\widehat\gamma_k.
-$$
-
-**Small-sample correction (HLN)** (Harvey, Leybourne & Newbold, 1997):
-
-$$
-\label{eq-hln}
-\mathrm{DM}_{\text{HLN}}=\mathrm{DM}\times \kappa(T,\ell),\qquad
-p=2\!\left(1-F_{t_{T-1}}(|\mathrm{DM}_{\text{HLN}}|)\right),
-$$
-
-where $\kappa(T,\ell)$ is the correction factor used in code **\[insert exact expression from `A-DM-HAC.py`]**. We use $\ell=4$ by default and verify robustness at $\ell\in\{3,4,5,6\}$.
-
-**Multiplicity.** Across quantiles we control FDR by **Benjamini–Hochberg** at $q=0.10$; we also report **Holm–Bonferroni** adjusted p-values.
-
-*PLACEHOLDER — Appendix listing:* `A-DM-HAC.py` (DM, HAC, HLN implementation).
-*PLACEHOLDER — Appendix table:* `(@tbl-dm-specs)` DM settings (lags, d.f., corrections) per results table.
-
----
-
-**References (abbrev.)** Koenker & Bassett (1978); Koenker (2005); Diebold & Mariano (1995); Newey & West (1987); Harvey, Leybourne & Newbold (1997); Gneiting & Raftery (2007).
+**Table 4: Feature dictionary (full list of predictors) {#app-fdict}**
+
+Table `@tbl-used-features` lists the complete set of features used in the modelling (feature‑set v1).  Each row gives the variable name, a brief description, and its family.  Use this as a reference when processing raw data and interpreting model coefficients.  
+
+| Family                    | Feature Name         | Window | Description                |
+| :------------------------ | :------------------- | :----: | :------------------------- |
+| **Momentum**              | `logret_12h`         |    1   | 12-hour log return.        |
+|                           | `logret_36h`         |    3   | 36-hour log return.        |
+|                           | `proc`               |    –   | Price rate of change.      |
+|                           | `rsi_14`             |   14   | Relative Strength Index.   |
+|                           | `stoch_k`            |   14   | Stochastic %K.             |
+|                           | `cci`                |    –   | Commodity Channel Index.   |
+|                           | `macd`               |  12/26 | MACD (fast/slow EMA diff). |
+|                           | `macd_signal`        |    9   | MACD signal line.          |
+| **Volatility**            | `realized_vol_36h`   |    3   | Std. of `logret_12h`.      |
+|                           | `vol_std_7bar`       |    7   | Rolling return std.        |
+|                           | `downside_vol_3bar`  |    3   | Std. of negative returns.  |
+|                           | `parkinson_vol_36h`  |    3   | Parkinson high–low vol.    |
+|                           | `gk_vol_36h`         |    3   | Garman–Klass vol.          |
+|                           | `atr_14`             |   14   | Average True Range.        |
+|                           | `bollinger_bw`       |   20   | Bollinger band width.      |
+|                           | `bollinger_b`        |   20   | Bollinger %B.              |
+|                           | `rolling_skew_50`    |   50   | Skewness of returns.       |
+|                           | `skew_36h`           |    3   | 36-hour return skewness.   |
+|                           | `adx`                |    –   | Average Directional Index. |
+| **Liquidity / Volume**    | `amihud_illiq_12h`   |    3   | Amihud illiquidity (36h).  |
+|                           | `vol_zscore_14`      |   14   | Volume z-score.            |
+|                           | `obv`                |    –   | On-Balance Volume.         |
+| **On-Chain**              | `holder_growth_1bar` |    1   | % change in holders.       |
+|                           | `holder_growth_7d`   |   14   | 7-day holder growth.       |
+|                           | `tx_per_account`     |    –   | Tx per active holder.      |
+| **Cross-Asset / Context** | `ret_SOL`            |    1   | SOL 12-h return.           |
+|                           | `ret_ETH`            |    1   | ETH 12-h return.           |
+|                           | `ret_BTC`            |    1   | BTC 12-h return.           |
+|                           | `sol_return`         |    1   | SOL 12-h log return.       |
+|                           | `corr_SOL_36h`       |    3   | Corr. to SOL returns.      |
+| **Calendar / Time**       | `day_of_week`        |    –   | Categorical (0–6).         |
+|                           | `hour_cos`           |    –   | Cyclical hour encoding.    |
+| **Tail / Regime markers** | `extreme_flag1`      |    –   | Extreme-move indicator.    |
+|                           | `extreme_count_72h`  |    6   | # extremes in past 72h.    |
+|                           | `tail_asym`          |    –   | Tail asymmetry score.      |
+|                           | `vol_regime`         |    –   | Quiet / volatile tag.      |

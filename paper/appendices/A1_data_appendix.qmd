@@ -1,15 +1,100 @@
-full token list, missingness thresholds, feature dictionary.
+# Appendix 1: Data, EDA and Feature Engineering Appendix
 
-### Table A1: Top-10 missingness audit {#apx-missing-top10}
+**Table 1: Token List**
 
-{=latex}
-\input{tables/raw/missing_top10.tex}
+| Token    | Address                                     |
+|:---------|:--------------------------------------------|
+| Fartcoin | 9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump |
+| Ray      | 4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R |
+| MEW      | MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5  |
+| LAUNCHCOIN | Ey59PH7Z4BFU4HjyKnyMdWt5GGN76KazTAwQihoUXRnk |
+| \$COLLAT | C7heQqfNzdMbUFQwcHkL9FvdwsFsDRBnfwZDDyWYCLTZ |
+| AVA      | DKu9kykSfbN5LBfFXtNNDPaX35o4Fv6vJ9FKk7pZpump |
+| \$WIF    | EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm |
+| POPCAT   | 7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr |
+| Pnut     | 2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump |
+| MOODENG  | ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY |
+| GIGA     | 63LfDmNb3MQ8mw9MtZ2To9bEA2M71kZUUGq5tiJxcqj9 |
+| BOME     | ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82  |
+| PONKE    | 5z3EqYQo9HiCEs3R84RCDMu2n7anpDMxRhdK8PSWmrRC |
+| FWOG     | A8C3xuqscfmyLrte3VmTqrAq8kgMASius9AFNANwpump |
+| UFD      | eL5fUxj2J4CiQsmW85k5FG9DvuQjjUoBHoQBi2Kpump  |
+| titcoin  | FtUEW73K6vEYHfbkfpdBZfWpxgQar2HipGdbutEhpump |
+| ZEREBRO  | 8x5VqbHA8D7NkD52uNuS5nnt3PwA8pLD34ymskeSo2Wn |
+| ALCH     | HNg5PYJmtqcmzXrv6S9zP1CDKk5BgDuyFBxbvNApump  |
+| GOAT     | CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump |
+| RETARDIO | 6ogzHhzdrQr9Pgv6hZ2MNze7UrzBMAFyBBWUYp1Fhitx |
+| \$michi  | 5mbK36SZ7J19An8jFochhQS4of8g6BwUjbeCSxBSoWdp |
+| SIGMA    | 5SVG3T9CNQsm2kEwzbRq6hASqh1oGfjqTtLXYUibpump |
+| MLG      | 7XJiwLDrjzxDYdZipnJXzpr1iDTmK55XixSFAa7JgNEL |
 
-### OHLCV Data Cleaning and Filtering Strategy {#sec-cleaning-strategy}
+---
+
+**Table 2: Schema (first 25 columns) of the raw feature dataset after cleaning & imputation.**
+
+| Column                      | Type           | Missing % | Example                  |
+|:----------------------------|:---------------|----------:|:-------------------------|
+| timestamp                   | datetime64[ns] |      0.00 | 2024-12-05 00:00:00      |
+| token_mint                  | object         |      0.00 | c7heqqfnzdmbufqwchkl9fvdwsfsdrbnfwzddywycltz |
+| token                       | object         |      0.00 | \$COLLAT                 |
+| open_usd                    | float64        |     18.30 | 0.0060908176263244       |
+| high_usd                    | float64        |     18.30 | 0.006515574831727        |
+| low_usd                     | float64        |     18.30 | 0.0029950061062182       |
+| close_usd                   | float64        |     18.30 | 0.0035483184686269       |
+| volume_usd                  | float64        |     12.64 | 0.0433240619061611       |
+| holder_count                | float64        |     39.36 | 5219.0                   |
+| new_token_accounts          | float64        |      9.92 | 87.0                     |
+| transfer_count              | float64        |      9.90 | 249.0                    |
+| token_name                  | object         |     12.64 | \$COLLAT                 |
+| token_symbol                | object         |      0.00 | \$COLLAT                 |
+| btc_eth_price_btc_open      | float64        |      0.28 | 103036.85692338014       |
+| btc_eth_price_btc_high      | float64        |      0.28 | 103606.80283966631       |
+| btc_eth_price_btc_low       | float64        |      0.28 | 96489.6214854048         |
+| btc_eth_price_btc_close     | float64        |      0.28 | 96489.6214854048         |
+| btc_eth_price_eth_open      | float64        |      0.28 | 3934.972713467608        |
+| btc_eth_price_eth_high      | float64        |      0.28 | 3940.376135868727        |
+| btc_eth_price_eth_low       | float64        |      0.28 | 3806.624693382269        |
+| btc_eth_price_eth_close     | float64        |      0.28 | 3806.624693382269        |
+| sol_price_open              | float64        |      0.28 | 242.4835666781825        |
+| sol_price_high              | float64        |      0.28 | 242.4835666781825        |
+| sol_price_low               | float64        |      0.28 | 232.37623969719164       |
+| sol_price_close             | float64        |      0.28 | 233.28909070252791       |
+
+---
+
+**72 Hour Log Return Code:**
+
+````
+df['logret_72h'] = df.groupby('token')['close_usd'].transform(lambda x: np.log(x.shift(-6) / x))
+````
+
+---
+
+**Table 3: Top-10 missingness audit {#apx-missing-top10}**
+
+| Variable | Type | Unique | Missing (%) |
+|---|---|---:|---:|
+| holder_count | float64 | 4734 | 39.36 |
+| open_usd | float64 | 6802 | 18.30 |
+| high_usd | float64 | 6802 | 18.30 |
+| low_usd | float64 | 6802 | 18.30 |
+| close_usd | float64 | 6802 | 18.30 |
+| volume_usd | float64 | 6803 | 12.64 |
+| token_name | object | 23 | 12.64 |
+| new_token_accounts | float64 | 892 | 9.92 |
+| transfer_count | float64 | 4502 | 9.90 |
+| tvl_tvl_usd | float64 | 180 | 0.55 |
+
+
+---
+
+**OHLCV Data Cleaning and Filtering Strategy {#sec-cleaning-strategy}**
 
 To ensure high-quality OHLCV data for tail-sensitive forecasting, a multi-step cleaning strategy was implemented. Tokens with insufficient history were dropped entirely. For stable but late-starting tokens, their time series were clipped to begin at the first valid data point. Intermittent gaps were filled using a limited forward-fill (max 2 periods) to preserve volatility structure, as this method was found to outperform more complex alternatives. A binary `was_imputed` flag was created for all imputed points. This rigorous approach maintains data integrity for rolling-window backtesting and avoids aggressive imputations that could distort tail risk estimates.
 
-### Table A2: Comparison of Imputation Methods on Simulated Missing Data {#imp-table}
+---
+
+**Table 4: Comparison of Imputation Methods on Simulated Missing Data {#imp-table}**
 
 To select the optimal imputation strategy, several methods were benchmarked on the `close_usd` price series for the token `$WIF` with 5% of data points randomly removed to simulate missingness. The Root Mean Squared Error (RMSE) between the imputed and true values was calculated for each method.
 
@@ -22,25 +107,228 @@ To select the optimal imputation strategy, several methods were benchmarked on t
 
 The results clearly indicate that **linear interpolation** achieves the lowest reconstruction error. Based on this empirical evidence, a hybrid strategy of linear interpolation supplemented with a limited forward-fill was adopted for the final data preprocessing pipeline.
 
-### Table A2: Feature Dictionary {#feature-table}
+---
+
+**Table 5: Feature Dictionary {#feature-table}**
 
 The table below enumerates the key features engineered for the forecasting models. All features were calculated on a per-token basis using a `groupby` operation to prevent data leakage.
 
-| Family | Feature Name | Window | Description |
-| :--- | :--- | :--- | :--- |
-| **Momentum** | `logret_12h` | 1 | 12-hour logarithmic return. |
-| | `logret_36h` | 3 | 36-hour logarithmic return. |
-| | `rsi_14` | 14 | 14-period Relative Strength Index. |
-| | `stoch_k` | 14 | 14-period Stochastic Oscillator %K. |
-| **Volatility** | `realized_vol_36h` | 3 | 36-hour realised volatility (std of `logret_12h`). |
-| | `atr_14` | 14 | 14-period Average True Range. |
-| | `bollinger_bw` | 20 | 20-period Bollinger Band Width. |
-| | `downside_vol_3bar` | 3 | Realised volatility of negative returns only. |
-| | `rolling_skew_50` | 50 | 50-bar rolling skewness of 12h returns. |
-| **Liquidity** | `amihud_illiq_12h` | 3 | 36-hour Amihud illiquidity measure. |
-| | `vol_zscore_14` | 14 | Z-score of 12h volume vs. its 14-period mean. |
-| **On-Chain** | `holder_growth_7d` | 14 | 7-day (14-bar) percentage growth in holders. |
-| | `tx_per_account` | - | Network transactions per holder. |
-| **Context** | `sol_return` | 1 | 12-hour log return of SOL. |
-| | `corr_SOL_36h` | 3 | 36-hour rolling correlation to SOL returns. |
-| **Calendar** | `day_of_week` | - | Day of the week (0=Monday). |
+Table `@tbl-used-features` lists the complete set of features used in the modelling (feature‑set v1).  Each row gives the variable name, a brief description, and its family.  Use this as a reference when processing raw data and interpreting model coefficients.  
+
+| Family                    | Feature Name         | Window | Description                |
+| :------------------------ | :------------------- | :----: | :------------------------- |
+| **Momentum**              | `logret_12h`         |    1   | 12-hour log return.        |
+|                           | `logret_36h`         |    3   | 36-hour log return.        |
+|                           | `proc`               |    –   | Price rate of change.      |
+|                           | `rsi_14`             |   14   | Relative Strength Index.   |
+|                           | `stoch_k`            |   14   | Stochastic %K.             |
+|                           | `cci`                |    –   | Commodity Channel Index.   |
+|                           | `macd`               |  12/26 | MACD (fast/slow EMA diff). |
+|                           | `macd_signal`        |    9   | MACD signal line.          |
+| **Volatility**            | `realized_vol_36h`   |    3   | Std. of `logret_12h`.      |
+|                           | `vol_std_7bar`       |    7   | Rolling return std.        |
+|                           | `downside_vol_3bar`  |    3   | Std. of negative returns.  |
+|                           | `parkinson_vol_36h`  |    3   | Parkinson high–low vol.    |
+|                           | `gk_vol_36h`         |    3   | Garman–Klass vol.          |
+|                           | `atr_14`             |   14   | Average True Range.        |
+|                           | `bollinger_bw`       |   20   | Bollinger band width.      |
+|                           | `bollinger_b`        |   20   | Bollinger %B.              |
+|                           | `rolling_skew_50`    |   50   | Skewness of returns.       |
+|                           | `skew_36h`           |    3   | 36-hour return skewness.   |
+|                           | `adx`                |    –   | Average Directional Index. |
+| **Liquidity / Volume**    | `amihud_illiq_12h`   |    3   | Amihud illiquidity (36h).  |
+|                           | `vol_zscore_14`      |   14   | Volume z-score.            |
+|                           | `obv`                |    –   | On-Balance Volume.         |
+| **On-Chain**              | `holder_growth_1bar` |    1   | % change in holders.       |
+|                           | `holder_growth_7d`   |   14   | 7-day holder growth.       |
+|                           | `tx_per_account`     |    –   | Tx per active holder.      |
+| **Cross-Asset / Context** | `ret_SOL`            |    1   | SOL 12-h return.           |
+|                           | `ret_ETH`            |    1   | ETH 12-h return.           |
+|                           | `ret_BTC`            |    1   | BTC 12-h return.           |
+|                           | `sol_return`         |    1   | SOL 12-h log return.       |
+|                           | `corr_SOL_36h`       |    3   | Corr. to SOL returns.      |
+| **Calendar / Time**       | `day_of_week`        |    –   | Categorical (0–6).         |
+|                           | `hour_cos`           |    –   | Cyclical hour encoding.    |
+| **Tail / Regime markers** | `extreme_flag1`      |    –   | Extreme-move indicator.    |
+|                           | `extreme_count_72h`  |    6   | # extremes in past 72h.    |
+|                           | `tail_asym`          |    –   | Tail asymmetry score.      |
+|                           | `vol_regime`         |    –   | Quiet / volatile tag.      |
+
+**Feature Engineering:**
+
+Key Stages of Pruning: 
+
+1. Multicollinearity filter (|ρ| > 0.98 → drop one feature)
+
+````
+from itertools import combinations
+
+# ① split Stage-1 list back into numeric vs. categorical
+num_keep = [c for c in predictors_stage1 if c in num_feats]
+cat_keep = [c for c in predictors_stage1 if c in cat_feats]
+
+# ② compute absolute Pearson correlation on numeric part
+corr = df[num_keep].corr().abs()
+
+# ③ scan the upper triangle; mark the *second* feature for dropping
+to_drop = set()
+for (col_i, col_j) in combinations(corr.columns, 2):
+    if corr.loc[col_i, col_j] > 0.98:
+        # keep the first occurrence, drop the second
+        to_drop.add(col_j)
+
+num_after = [c for c in num_keep if c not in to_drop]
+predictors_stage2 = num_after + cat_keep
+
+print(f"Dropped {len(to_drop)} highly-collinear numerics "
+      f"(>0.98) ➜ {len(predictors_stage2)} predictors remain.\n"
+      f"Numeric kept: {len(num_after)}  |  Categorical kept: {len(cat_keep)}")
+
+# Optional: inspect what was dropped
+display(sorted(to_drop))`
+````
+
+---
+
+**Light LightGBM Quantile Model (τ = 0.50)**
+
+**Objective** Obtain a fast, model-based ranking of predictor importance  
+before engaging in computationally expensive tuning.
+* **Model**  LightGBM with `objective="quantile"` and `alpha = 0.5`
+  (i.e., median pinball loss).  
+* **Configuration**  400 trees, shrinkage 0.05, moderate regularisation
+  (`num_leaves = 64`, 80 % row/feature bagging).  
+* **Categorical handling**  Native LightGBM categorical splits, using the
+  list derived in Stage 1 (`cat_keep`).  
+* **Output**  Gain-based importance for every predictor; features
+  contributing < 0.3 % total gain will be eligible for pruning in
+  Stage 4.
+
+
+````
+# 1. prepare matrice
+X = df[predictors_stage2]          # predictors from Stage 2
+y = df["return_72h"]
+
+lgb_data = lgb.Dataset(
+    X,
+    label=y,
+    categorical_feature=cat_keep,  # defined in Stage 1
+    free_raw_data=False
+)
+
+# 2. model params 
+params = dict(
+    objective        = "quantile",
+    alpha            = 0.5,          # median
+    learning_rate    = 0.05,
+    num_leaves       = 64,
+    feature_fraction = 0.80,
+    bagging_fraction = 0.80,
+    seed             = 42,
+    verbose          = -1,
+)
+
+gbm = lgb.train(
+    params,
+    lgb_data,
+    num_boost_round = 400
+)
+
+3. gain importance 
+gain = pd.Series(
+    gbm.feature_importance(importance_type="gain"),
+    index = predictors_stage2
+).sort_values(ascending=False)
+
+gain_pct = 100 * gain / gain.sum()
+display(gain_pct.head(20).to_frame("gain_%").style.format({"gain_%":"{:.2f}"}))
+
+# candidate list for Stage 4 pruning
+threshold = 0.3                   # % of total gain
+predictors_stage3 = gain_pct[gain_pct >= threshold].index.tolist()
+
+print(f"\nStage 3 complete → {len(predictors_stage3)} predictors "
+      f"(cover {gain_pct[gain_pct >= threshold].sum():.1f}% of total gain) "
+      "advance to Stage 4.")
+````
+
+#### Table 6: Feature gain
+
+| Feature               | Gain (%) |
+|:----------------------|--------:|
+| proc                  |   32.22 |
+| ret_ETH               |    4.18 |
+| ret_SOL               |    4.03 |
+| ret_BTC               |    3.73 |
+| cci                   |    3.62 |
+| stoch_k               |    3.47 |
+| logret_12h            |    3.26 |
+| logret_36h            |    3.16 |
+| bollinger_bw          |    3.04 |
+| bollinger_b           |    2.93 |
+| adx                   |    2.86 |
+| vol_std_7bar          |    2.82 |
+| vol_zscore_14         |    2.50 |
+| tx_per_account        |    2.46 |
+| skew_36h              |    2.43 |
+| holder_growth_1bar    |    2.31 |
+| downside_vol_3bar     |    2.24 |
+| parkinson_vol_36h     |    2.24 |
+| gk_vol_36h            |    2.12 |
+| holder_growth_7d      |    1.98 |
+
+
+Gain-Based Feature Pruning
+
+**Objective** Remove predictors that contribute a negligible share of LightGBM gain so subsequent
+hyper-parameter search is faster and feature importance clearer.
+
+* **Criterion**  
+  A predictor is kept if its **gain share ≥ 0.3 %** of total model gain
+  (median-quantile LightGBM from Stage 3).
+
+* **Result**  
+  *29 predictors* survive the filter, representing **99.3 % of total gain**.
+  The discarded set contains mainly rare-event flags (`extreme_flag1`,
+  `tail_*`) and low-signal regime dummies (`vol_regime`, `trend_regime`)
+  that LightGBM could not exploit at τ = 0.5.
+
+* **Rationale**  
+  • 0.3 % is conservative: features below this level each explain less
+    than 1⁄300 of model gain.  
+  • Sparse tail flags can still be revisited for τ = 0.10 / 0.90 if needed,
+    but including them now would inflate tree depth without measurable
+    benefit at the median.
+
+````
+THRESH = 0.3    # percent gain threshold
+
+predictors_final = gain_pct[gain_pct >= THRESH].index.tolist()
+print(f"Kept {len(predictors_final)} predictors "
+      f"(covers {gain_pct[gain_pct >= THRESH].sum():.1f}% of gain)")
+````
+
+
+Next Stafe — Domain “must-keep” Add-Backs
+
+Sparse tail-event indicators carry little gain for the median quantile, but economic theory suggests they matter for the tails (τ ≪ 0.50 or τ ≫ 0.50).  
+Therefore, we add back  `extreme_flag`, `tail_pos`, `tail_neg`, `tail_asym`, `extreme_count_72h` after Stage 4 pruning.  These flags cost almost no depth in tree models and can widen the 10 % / 90 % (and other tail) intervals when recent shocks cluster.
+
+````
+# Saving the final feature sets
+
+# 1. Add tail flags to the pruned predictor list
+tail_cols = ["extreme_flag1","tail_asym", "extreme_count_72h", "vol_regime"]
+tail_cols  = [c for c in tail_cols if c in df.columns]
+
+predictors_final_tail = predictors_final + tail_cols
+
+print(f"Feature-set sizes  →  v1: {len(predictors_final)}  |  v1_tail: {len(predictors_final_tail)}")
+
+# 2. Save Parquet files
+base_cols = ["timestamp", "token", "return_72h"]
+
+df[base_cols + predictors_final]         .to_parquet("features_v1.parquet",       index=False)
+df[base_cols + predictors_final_tail]    .to_parquet("features_v1_tail.parquet", index=False)
+````

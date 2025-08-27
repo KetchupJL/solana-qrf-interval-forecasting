@@ -1,43 +1,47 @@
 
-# 5. Results
+# Results
 
-## Experimental setup
+**Experimental setup**
 
-We evaluate **LQR**, **LightGBM-Quantile**, and **QRF** on the rolling **Train 120 → Cal 24 → Test 6** design (step = 6; non-overlapping Tests), across the τ-grid $\{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$. Unless noted otherwise, results are **micro-averaged** across all test observations (with **macro** averages by token in parentheses). We report **pinball loss** (Table `@tbl-pinball-tau`), **coverage and width** of 80%/90% bands (Table `@tbl-cov-width`), **reliability curves** (Fig. `@fig-reliability-global`), and **width distributions** (Fig. `@fig-widths`). Pairwise significance is assessed later via **DM–HAC (HLN-adjusted)** (§5.3).
+We evaluate LQR, LightGBM-Quantile, and QRF, across the τ-grid $\{0.05,0.10,0.25,0.50,0.75,0.90,0.95\}$. Unless noted otherwise, results are **micro-averaged** across all test observations (with macro averages by token in parentheses).
 
- **For supporting Plots and Tables follow Appendix \@ref(app-r1).**
+*Appendix 3 contains the main supporting figures and tables for this report section. For the full set of model analysis, cross model comparison and more, see Appendix 4. See Appendix 5 for all validation and statistical tests code.*
 
-##  Overall accuracy and calibration
+## Overall accuracy and Calibration
 
-Across the pooled rolling evaluation, **QRF** delivers the **lowest mean pinball loss at the left tail and lower-middle quantiles** (τ ∈ {0.05, 0.10, 0.25}), remains **competitive around the median**, and tracks the upper tails closely. **LightGBM** is generally less accurate (higher pinball) but attains **high coverage by producing wider intervals**. **LQR** is competitive near the centre and upper quantiles but **systematically under-covers**. In terms of calibration, **QRF’s 90% bands are close to nominal** (≈0.87–0.89), while **80% bands remain modestly under-covered** (≈0.76–0.78). LightGBM **over-covers** (e.g., \~0.98–0.99 at 90%), consistent with conservative widths. These patterns hold at both the pooled (micro) level and when averaging per token (macro).
+Across the pooled rolling evaluation, QRF delivers the lowest mean pinball loss at the left tail and lower-middle quantiles **($\tau$ ∈ {0.05, 0.10, 0.25})**, remains competitive around the median, and tracks the upper tails closely. LightGBM is generally less accurate (higher pinball) but attains high coverage by producing wider intervals. LQR is competitive near the centre and upper quantiles but systematically under-covers (0.51 at 80%). In terms of calibration, QRF’s 90% bands are close to nominal (≈0.88), while 80% bands remain modestly under-covered (≈0.77). LightGBM over-covers (0.98 at 90%), consistent with conservative widths. These patterns hold at both the pooled (micro) level and when averaging per token (macro).
 
-### Pinball accuracy by quantile
+**Pinball accuracy by quantile**
 
-@tbl-pinball-tau reports the **mean pinball loss by tau and model** (standard errors in parentheses; micro and macro reported). The main findings are:
+This Table reports the **mean pinball loss by tau and model** (standard errors in parentheses; micro and macro reported). The main findings are:
+
 | τ    | LQR    | LightGBM | QRF    |
 |:-----|:-------|:---------|:-------|
-| 0.05 | 0.03015| 0.03514  | 0.01406|
-| 0.10 | 0.04094| 0.03108  | 0.02244|
-| 0.25 | 0.05524| 0.04556  | 0.04159|
-| 0.50 | 0.06302| 0.06581  | 0.06103|
-| 0.75 | 0.05539| 0.07374  | 0.07162|
-| 0.90 | 0.03707| 0.06622  | 0.06597|
-| 0.95 | 0.02399| 0.05957  | 0.04783|
+| 0.05 | 0.03015| 0.03514  | **0.01406**|
+| 0.10 | 0.04094| 0.03108  | **0.02244**|
+| 0.25 | 0.05524| 0.04556  | **0.04159**|
+| 0.50 | 0.06302| 0.06581  | **0.06103**|
+| 0.75 | **0.05539**| 0.07374  | 0.07162|
+| 0.90 | **0.03707**| 0.06622  | 0.06597|
+| 0.95 | **0.02399**| 0.05957  | 0.04783|
 
-* **Lower tail (τ = 0.05, 0.10):** QRF attains the lowest loss, with a sizable margin over LightGBM and a clear advantage over LQR. This indicates **superior tail sensitivity**—crucial in heavy-tailed return series.
-* **Lower-middle (τ = 0.25):** QRF remains best. This is the region where models often drift if lower-tail calibration is imperfect; the improvement reflects the corrected residual-offset rule (see below).
-* **Centre/upper (τ = 0.50, 0.75, 0.90, 0.95):** LQR is competitive to slightly better at the strict median and some upper τ on **pinball** (a linear model can approximate the median well on smoothed features), but QRF is **close** and often within the standard error; LightGBM typically has the **largest loss**.
-* The **rank ordering** corresponds to the bar chart in Fig. @fig-reliability-global (QRF’s line adheres tightly to the 45° band except for a mild 80% under-coverage discussed below) and your pinball bar plot (QRF best at 0.05–0.25; LQR competitive around 0.50–0.95; LightGBM worst across τ).
+*See @fig-pinball-by-quantile-by-model for the visual representation.*
 
-*Interpretation.* QRF’s non-parametric trees capture non-linear interactions that matter most in the **tails and asymmetric regimes**; LQR’s linear structure can excel near the centre when the conditional median depends smoothly on features. LightGBM’s comparatively higher pinball reflects a tendency to produce **over-conservative intervals** after calibration.
+* **Lower tail ($\tau$ = 0.05, 0.10):** QRF attains the lowest loss, with a sizable margin over LightGBM and a clear advantage over LQR. This indicates superior tail sensitivity — crucial in heavy-tailed return series.
+* **Lower-middle ($\tau$ = 0.25):** QRF remains best. This is the region where models often drift if lower-tail calibration is imperfect; the improvement reflects the corrected residual-offset rule (see below).
+* **Centre/upper ($\tau$ = 0.50, 0.75, 0.90, 0.95):** LQR is competitive to slightly better at the strict median and some upper τ on pinball (a linear model can approximate the median well on smoothed features), but QRF is close and often within the standard error; LightGBM has the largest loss.
+* The **rank ordering** corresponds to the bar chart in Fig. @fig-qrf-v3-reliability-global (QRF’s line adheres tightly to the 45° band except for a mild 80% under-coverage discussed below) and your pinball bar plot (QRF best at 0.05–0.25; LQR competitive around 0.50–0.95; LightGBM worst across $\tau$).
 
-### 5.2 Overall accuracy and calibration
+*The other models coverage can be see here: LQR V1 @fig-lqr-calibration  , LightGBM @fig-lgbm-v4-calibration*
 
-#### Global calibration and reliability
+QRF’s non-parametric trees capture non-linear interactions that matter most in the tails and asymmetric regimes; LQR’s linear structure can excel near the centre when the conditional median depends smoothly on features. LightGBM’s comparatively higher pinball reflects a tendency to produce over-conservative intervals after calibration.
 
-Figure @fig-reliability-global plots the **reliability curve**—the empirical hit-rate $\Pr\{y\le \hat q_\tau\}$ against the nominal $\tau$—with Wilson 95% CIs. After correcting the residual-offset rule (now using $\delta_\tau = Q_\tau(r_\tau)$, not $Q_{1-\tau}$, for residuals $r_\tau = y - \hat q_\tau$), the **QRF curve lies close to the 45° line** across the grid, with only a **modest dip around $\tau\approx0.8$** that mirrors the slightly low 80% interval coverage (below).
+**Global calibration and reliability**
 
-**Coverage and width (pooled).** Table @tbl-cov-width summarises pooled coverage at 80% and 90% together with coverage error (actual − target). QRF attains **near-nominal 90% coverage** and **slightly low 80% coverage**; LightGBM **over-covers**, and LQR **under-covers** markedly.
+Figure @fig-qrf-v3-reliability-global plots the reliability curve — the empirical hit-rate $\Pr\{y\le \hat q_\tau\}$ against the nominal $\tau$ with Wilson 95% CIs. After correcting the residual-offset rule (now using $\delta_\tau = Q_\tau(r_\tau)$, not $Q_{1-\tau}$, for residuals $r_\tau = y - \hat q_\tau$), the QRF curve lies close to the 45° line across the grid, with only a modest dip around $\tau\approx0.8$ that mirrors the slightly low 80% interval coverage (below).
+
+**Coverage and width (pooled)**
+@tbl-cov-width summarises pooled coverage at 80% and 90% together with coverage error (actual − target). QRF attains near-nominal 90% coverage and slightly low 80% coverage; LightGBM over-covers, and LQR under-covers markedly.
 
 Table: Coverage and sharpness at central 80% and 90% intervals (pooled). {#tbl-cov-width}
 
@@ -50,60 +54,52 @@ Table: Coverage and sharpness at central 80% and 90% intervals (pooled). {#tbl-c
 | 90%      | LightGBM | 0.979435 |                 +0.079435 |
 | 90%      | QRF      | 0.878146 |                 −0.021854 |
 
+*See @fig-coverage-by-model for the visual representation.*
+
 **Key takeaways.**
 
 * **QRF:** $0.76\!\!-\!0.78$ at 80% (error $\approx$ −2–4 p.p.); $0.87\!\!-\!0.89$ at 90% (error $\approx$ −1–3 p.p.).
-* **LightGBM:** $0.79\!\!-\!0.80$ at 80%; $0.98\!\!-\!0.99$ at 90% (**+8–9 p.p. over-coverage**), consistent with conservative widths.
-* **LQR:** $0.51$ at 80% and $0.62$ at 90% (**−29 p.p.** and **−28 p.p.**), indicating **intervals that are too narrow**.
+* **LightGBM:** $0.79\!\!-\!0.80$ at 80%; $0.98\!\!-\!0.99$ at 90% (+8–9 p.p. over-coverage), consistent with conservative widths.
+* **LQR:** $0.51$ at 80% and $0.62$ at 90% (−29 p.p. and −28 p.p.), indicating intervals that are too narrow.
 
-Figure @fig-widths shows the **width distributions** for the 80% and 90% intervals. For a given empirical coverage, **QRF’s bands are materially tighter than LightGBM’s** (shorter right tails), reflecting a better **sharpness–coverage trade-off**. (A model-level efficiency scatter—coverage vs mean width—appears in §5.3.)
+@fig-widths shows the width distributions for the 80% and 90% intervals. For a given empirical coverage, QRF’s bands are materially tighter than LightGBM’s (shorter right tails), reflecting a better sharpness–coverage trade-off. (A model-level efficiency scatter—coverage vs mean width—appears)
 
-#### State dependence (quiet / mid / volatile)
+**State dependence (quiet / mid / volatile)**
 
-Slicing by a rolling volatility regime (Fig. @fig-reliability-regime) shows **coverage is stable across regimes** after the offset fix: **\~0.75–0.78 (80%)** and **\~0.87–0.88 (90%)** in **quiet**, **mid**, and **volatile** windows. What varies is **sharpness**: widths **scale strongly with regime** (quiet < mid ≪ volatile). In our pooled sample, the **90% mean width** is \~**0.23–0.34** in quiet/mid versus \~**1.35** in volatile periods, indicating that QRF **widens bands adaptively** to preserve coverage rather than letting it collapse in turbulent markets. LightGBM’s over-coverage is **uniform across regimes**; LQR **under-covers everywhere**.
+Slicing by a rolling volatility regime (@fig-qrf-reliability-by-regime-bars) shows coverage is stable across regimes after the offset fix: \~0.75–0.78 (80%) and \~0.87–0.88 (90%) in quiet, mid, and volatile windows. What varies is sharpness: widths scale strongly with regime (quiet < mid ≪ volatile). In our pooled sample, the 90% mean width is \*0.23–0.34 in quiet/mid versus \~1.35 in volatile periods, indicating that QRF widens bands adaptively to preserve coverage rather than letting it collapse in turbulent markets. LightGBM’s over-coverage is uniform across regimes; LQR under-covers everywhere.
 
-#### Conditional coverage by predicted width
+**Practical significance**
 
-To test whether **wider predicted intervals are indeed safer**, we group forecasts into deciles of predicted width and recompute hit-rates. Coverage **increases monotonically with width decile** for QRF (Fig. @fig-cond-cov-width), with the top decile closest to nominal (80%/90%) and the bottom decile under-covering most—evidence that QRF’s widths are **informative about uncertainty**. The full decile table appears in Appendix @tbl-condcov-width.
+1. **Decision-useful tails.** QRF’s lowest pinball at $\tau\in\{0.05,0.10\}$ yields more reliable downside bounds (a forward-looking VaR analogue) while keeping the 90% band near nominal, supporting position sizing, stop placement, and risk budgeting.
+2. **Sharper bands at like-for-like coverage.** Relative to LightGBM, QRF achieves similar/better coverage with narrower intervals, improving capital efficiency for risk-aware sizing.
+3. **Limits of linearity.** LQR’s competitive median does not translate into calibrated intervals; systematic under-coverage at both 80% and 90% confirms linear structure misses asymmetric tail behaviour in crypto returns.
 
-#### Practical significance
+## Significance Testing
 
-1. **Decision-useful tails.** QRF’s lowest pinball at $\tau\in\{0.05,0.10\}$ yields **more reliable downside bounds** (a forward-looking VaR analogue) while keeping the **90% band near nominal**, supporting position sizing, stop placement, and risk budgeting.
-2. **Sharper bands at like-for-like coverage.** Relative to LightGBM, QRF achieves **similar/better coverage with narrower intervals**, improving **capital efficiency** for risk-aware sizing.
-3. **Limits of linearity.** LQR’s competitive median does **not** translate into calibrated intervals; systematic under-coverage at both 80% and 90% confirms linear structure misses **asymmetric tail behaviour** in crypto returns.
+This subsection reports pairwise Diebold–Mariano (DM) tests on pinball-loss differentials and the Model Confidence Set (MCS). Methods (HAC-NW, small-sample correction, FDR at $q\le 0.10$) are specified in appendix 3; here we focus on the outcomes.
 
-#### Note on the calibration fix (for transparency)
+**Pairwise significance (DM): where QRF wins**
 
-Earlier versions applied $Q_{1-\tau}(r_\tau)$ to lower tails, which **pushed lower quantiles up** (notably $q_{0.25}$) and, via isotonic non-crossing, **lifted the median**. We replaced this with $\delta_\tau = Q_\tau(r_\tau)$, retained **regime-aware computation** on tails (quiet vs volatile), enforced **monotone rearrangement** across $\tau$, and added **split-conformal inflation** on (q10,q90) and (q05,q95). All figures/tables here use the **post-fix** outputs (see Methods §3.4).
-
-
-
-## 5.4 Significance testing
-
-This subsection reports **pairwise Diebold–Mariano (DM) tests** on pinball-loss differentials and the **Model Confidence Set (MCS)**. Methods (HAC-NW, small-sample correction, FDR at $q\le 0.10$) are specified in §3; here we focus on the **outcomes**.
-
-### 5.4.1 Pairwise significance (DM): where QRF wins
-
-**Headline.** QRF achieves **systematic and statistically reliable** gains over LightGBM at the quantiles that define interval bands, and is competitive with LQR elsewhere. Tokens with significant DM in favour of QRF (BH $q\le 0.10$):
+QRF achieves systematic and statistically reliable gains over LightGBM at the quantiles that define interval bands, and is competitive with LQR elsewhere. Tokens with significant DM in favour of QRF (BH $q\le 0.10$):
 
 * **Lower tail**
-  – **$\tau=0.10$:** QRF beats LightGBM on **10/19 tokens (53%)**; vs LQR **6/19 (32%)**.
-  – **$\tau=0.25$:** QRF beats LightGBM on **12/19 (63%)**; vs LQR **7/19 (37%)**.
+  – **$\tau=0.10$:** QRF beats LightGBM on 10/19 tokens (53%); vs LQR 6/19 (32%).
+  – **$\tau=0.25$:** QRF beats LightGBM on 12/19 (63%); vs LQR 7/19 (37%).
 
 * **Centre**
-  – **$\tau=0.50$:** Differences are small and seldom significant (QRF wins **7/19 (37%)** vs LightGBM; **5/19 (26%)** vs LQR).
+  – **$\tau=0.50$:** Differences are small and seldom significant (QRF wins 7/19 (37%) vs LightGBM; 5/19 (26%) vs LQR).
 
 * **Upper tail**
-  – **$\tau=0.95$:** Very strong advantage over LightGBM (**16/19 tokens, 84%**); vs LQR **4/19 (21%)**.
-  – **$\tau=0.90$:** Mixed/rare significance (**5/19** against each comparator).
-  – **$\tau=0.75$:** Mixed (**5–6/19** depending on comparator).
+  – **$\tau=0.95$:** Very strong advantage over LightGBM (16/19 tokens, 84%); vs LQR 4/19 (21%).
+  – **$\tau=0.90$:** Mixed/rare significance (5/19 against each comparator).
+  – **$\tau=0.75$:** Mixed (6/19 depending on comparator).
 
-**Interpretation.** These results mirror the descriptive evidence in §5.2: LightGBM’s **conservative, wider bands** tend to **inflate pinball loss** at the tails, where QRF maintains **near-nominal coverage** with **sharper intervals**. Around the median, **all models are close**, so statistical ties are expected.
+These results highlight LightGBM’s conservative, wider bands tend to inflate pinball loss at the tails, where QRF maintains near-nominal coverage with sharper intervals. Around the median, all models are close, so statistical ties are expected.
 
-![DM Heatmap](figures/raw/fig-dm-heatmap.pdf){#fig-dm-heatmap fig-align="center" width="65%"} 
-The per-token DM heatmap (QRF–LightGBM; Fig. @fig-dm-heatmap) shows **blocks of blue** at $\tau\in\{0.10,0.25,0.95\}$: many tokens favour QRF at the tails; colours are more mixed near $\tau=0.50$.
+![Diebold–Mariano statistics (QRF − LightGBM) by token and quantile; red favors QRF, blue favors LightGBM; values clipped to ±3.](figures/final/fig-dm-heatmap-qrf-vs-lgbm.pdf){#fig-dm-heatmap fig-align="center" width="80%"} 
+The per-token DM heatmap (QRF–LightGBM) shows blocks of blue at $\tau\in\{0.10,0.25,0.95\}$: many tokens favour QRF at the tails; colours are more mixed near $\tau=0.50$.
 
-#### Table 5.4 — DM wins by quantile {#tbl-dm}
+**Table 6.3 — DM wins by quantile**
 
 |   τ  | QRF vs LQR better (n/N) | QRF vs LQR win rate | QRF vs LightGBM better (n/N) | QRF vs LightGBM win rate |
 | :--: | :---------------------: | :-----------------: | :--------------------------: | :----------------------: |
@@ -114,14 +110,16 @@ The per-token DM heatmap (QRF–LightGBM; Fig. @fig-dm-heatmap) shows **blocks o
 | 0.90 |           5/19          |         0.26        |             5/19             |           0.26           |
 | 0.95 |           4/19          |         0.21        |             16/19            |           0.84           |
 
-*Notes:* Entries report the number of tokens where the DM test rejects the null of equal accuracy **in favour of QRF** at BH-FDR $q\le 0.10$, divided by the number of evaluable tokens at that $\tau$.
+Entries report the number of tokens where the DM test rejects the null of equal accuracy in favour of QRF at BH-FDR $q\le 0.10$, divided by the number of evaluable tokens at that $\tau$.
+
+*The code for this test can be found in Appendix 5, and linked notebooks*
 
 
-### 5.4.2 Model Confidence Set (MCS): who survives
+**Model Confidence Set (MCS): who survives?**
 
-**Headline.** The MCS consolidates the DM evidence: **QRF remains in the superior set at all $\tau\ge 0.10$**, and is the **sole survivor** for $\tau\in \{0.10,0.25,0.50,0.75\}$. At $\tau=0.90$, **all three** models survive (differences are small); at $\tau=0.95$ the MCS retains **QRF and LQR**.
+The MCS consolidates the DM evidence: QRF remains in the superior set at all $\tau\ge 0.10$, and is the sole survivor for $\tau\in \{0.10,0.25,0.50,0.75\}$. At $\tau=0.90$, all three models survive (differences are small); at $\tau=0.95$ the MCS retains QRF and LQR.
 
-#### Table 5.4 — MCS survivors by quantile {#tbl-mcs}
+**Table 6.4 — MCS survivors by quantile {#tbl-mcs}**
 
 |   τ  | MCS survivor set   |
 | :--: | :----------------- |
@@ -133,22 +131,12 @@ The per-token DM heatmap (QRF–LightGBM; Fig. @fig-dm-heatmap) shows **blocks o
 | 0.90 | QRF, LQR, LightGBM |
 | 0.95 | QRF, LQR           |
 
-*Interpretation.* The MCS confirms that QRF is **robustly dominant** across most quantiles. The inclusion of all models at $\tau=0.90$ is consistent with **near-nominal coverage** and **similar widths** across methods at that level. The $\tau=0.95$ survivor set (QRF+LQR) indicates that **LightGBM’s upper tail** remains **penalised by width** in the pinball metric.
-
----
-
-### 5.3.3 Cohesion with prior findings
-
-* **Calibration/Width (Fig. 5.1 & Tbl. 5.2):** QRF’s **near-nominal 90% coverage** and **tighter 80/90% intervals** explain its **tail-quantile DM wins** versus LightGBM.
-* **Backtest (§5.4):** The **lower-tail accuracy** (τ=0.10–0.25) maps into **better downside control** for risk-aware sizing; the lack of a decisive edge at the median is economically unproblematic.
-
-This section, together with §5.2, establishes that **QRF is the superior interval forecaster** for mid-cap Solana tokens, particularly at the **quantiles that define operational risk bands**.
+The MCS confirms that QRF is robustly dominant across most quantiles. The inclusion of all models at $\tau=0.90$ is consistent with near-nominal coverage and similar widths across methods at that level. The $\tau=0.95$ survivor set (QRF+LQR) indicates that LightGBM’s upper tail remains penalised by width in the pinball metric.
 
 
-## Sharpness–Coverage Efficiency
+**Sharpness–Coverage Efficiency**
 
-**What and why.**
-For a central interval $[q_\ell, q_u]$ (e.g., $\ell=0.10, u=0.90$ for 80%), we summarise each model by its **empirical coverage**
+For a central interval $[q_\ell, q_u]$ (e.g., $\ell=0.10, u=0.90$ for 80%), we summarise each model by its empirical coverage
 
 $$
 \frac{1}{N}\sum_{t=1}^N \mathbf{1}\{q_{\ell,t}\le y_t \le q_{u,t}\}
@@ -160,18 +148,16 @@ $$
 \frac{1}{N}\sum_{t=1}^N (q_{u,t}-q_{\ell,t}).
 $$
 
-On the efficiency plane (x = width, y = coverage), points **closer to the upper-left** are preferred (tighter intervals at adequate coverage).
+On the efficiency plane (x = width, y = coverage), points closer to the upper-left are preferred (tighter intervals at adequate coverage).
 
-**Main result.**
-Figure **@fig-efficiency-scatter** plots the six model–interval pairs (80% and 90%). The **QRF** points lie **closer to the efficiency frontier** than LightGBM and LQR:
+![Sharpness–coverage efficiency: mean interval width (x) vs empirical coverage (y). Points closer to the upper-left are preferred. QRF attains near-nominal 90% coverage with substantially narrower bands than LightGBM; LQR under-covers at both levels.](figures/final/fig-efficiency-scatter.pdf){#fig-efficiency-scatter fig-align="center" width="70%"}
 
-* **90% band:** **QRF-90** delivers **0.878** coverage with **mean width ≈ 0.60**, whereas **LightGBM-90** attains **0.979** coverage by using **very wide bands (≈ 1.30)**—about **54% wider** than QRF. LQR-90 is narrow (**≈ 0.27**) but **under-covers** at **0.622**.
-* **80% band:** **QRF-80** achieves **0.766** coverage with **width ≈ 0.43** vs **LightGBM-80** at **0.790** with **width ≈ 0.48**—**\~10% narrower** for QRF with only **−2.4 p.p.** lower coverage. LQR-80 again **under-covers** (0.508) despite being sharp (**≈ 0.22**).
+**@fig-efficiency-scatter** plots the six model–interval pairs (80% and 90%). The QRF points lie closer to the efficiency frontier than LightGBM and LQR:
 
-**Interpretation.**
-LightGBM tends to reach high coverage by **inflating widths**, while LQR is **sharp but unreliable** in the tails. **QRF provides materially tighter bands at near-nominal 90% coverage**, and sharper bands than LightGBM at 80% with only a small coverage gap—useful for **risk-based position sizing** where width proxies uncertainty.
+- **90% band:** QRF-90 delivers 0.878 coverage with mean width ≈ 0.60, whereas LightGBM-90 attains 0.979 coverage by using very wide bands (≈ 1.30) — about 54% wider than QRF. LQR-90 is narrow (≈ 0.27) but under-covers at 0.622.
+- **80% band:** QRF-80 achieves 0.766 coverage with width ≈ 0.43 vs LightGBM-80 at 0.790 with width ≈ 0.48 — \~10% narrower for QRF with only −2.4 p.p. lower coverage. LQR-80 again under-covers (0.508) despite being sharp (≈ 0.22).
 
-![Sharpness–coverage efficiency: mean interval width (x) vs empirical coverage (y). Points closer to the upper-left are preferred. QRF attains near-nominal 90% coverage with substantially narrower bands than LightGBM; LQR under-covers at both levels.](figures/raw/fig_efficiency_scatter.pdf){#fig-efficiency-scatter fig-align="center" width="70%"}
+LightGBM tends to reach high coverage by inflating widths, while LQR is sharp but unreliable in the tails. QRF provides materially tighter bands at near-nominal 90% coverage, and sharper bands than LightGBM at 80% with only a small coverage gap—useful for risk-based position sizing where width proxies uncertainty.
 
 Table: **Sharpness–coverage summary** (pooled over tokens and folds). Coverage error is relative to the nominal target (0.80 or 0.90). {#tbl-efficiency-summary}
 
@@ -185,30 +171,28 @@ Table: **Sharpness–coverage summary** (pooled over tokens and folds). Coverage
 | **QRF**  |    90%   |   **0.60** | **0.878** |     **−0.022** |
 
 **Practical takeaway.**
-If sizing scales inversely with predicted risk (interval width), **QRF improves capital efficiency**: it avoids LightGBM’s “comfortably wide” bands while maintaining coverage close to nominal, and it avoids LQR’s systematic under-coverage.
+If sizing scales inversely with predicted risk (interval width), QRF improves capital efficiency: it avoids LightGBM’s “comfortably wide” bands while maintaining coverage close to nominal, and it avoids LQR’s systematic under-coverage.
 
----
 
-## 5.6 Heterogeneity across tokens
-
-### Cross-sectional dispersion
+## Heterogeneity across tokens
 
 Model performance is not uniform across assets. Two systematic drivers emerge from the token-level diagnostics:
 
-1. **Data quality / liquidity.** Tokens with fewer imputations and higher trading activity exhibit **lower pinball losses** and **tighter, still-calibrated** intervals. Sparse or illiquid series show wider right tails in the width distribution and occasional 80% under-coverage.
-2. **Volatility state.** Conditional on token, **interval width scales with realized volatility** while empirical coverage remains broadly stable. This is consistent with the regime-aware residual offsets and split-conformal widening: bands expand in turbulent windows rather than allowing coverage to collapse.
+- **Data quality / liquidity.** Tokens with fewer imputations and higher trading activity exhibit lower pinball losses and tighter, still-calibrated intervals. Sparse or illiquid series show wider right tails in the width distribution and occasional 80% under-coverage.
 
-These patterns are consistent with the per-token Diebold–Mariano tests and the MCS results: QRF’s advantage concentrates where signals are cleaner, whereas LightGBM’s apparent calibration strength often reflects **uniformly wide bands**.
+- **Volatility state.** Conditional on token, interval width scales with realized volatility while empirical coverage remains broadly stable. This is consistent with the regime-aware residual offsets and split-conformal widening: bands expand in turbulent windows rather than allowing coverage to collapse.
+
+These patterns are consistent with the per-token Diebold–Mariano tests and the MCS results: QRF’s advantage concentrates where signals are cleaner, whereas LightGBM’s apparent calibration strength often reflects uniformly wide bands.
 
 #### Per-token accuracy (dispersion view)
 
-**Fig. @fig-pinball-by-token** summarises the distribution of pinball loss across tokens for each model and quantile. It highlights where QRF gains are largest (typically higher-liquidity names) and where models tie.
+**@fig-pinball-per-token** summarises the distribution of pinball loss across tokens for each model and quantile. It highlights where QRF gains are largest (typically higher-liquidity names) and where models tie.
 
-![Per-token pinball loss by model and quantile τ. Boxes summarise dispersion across tokens; black diamonds mark the cross-token mean for each model–τ; faint points show individual token means.](figures/raw/fig-pinball-by-token.pdf){#fig-pinball-by-token fig-align="center" width="82%"}
+![Per-token pinball loss by model and quantile τ. Boxes summarise dispersion across tokens; black diamonds mark the cross-token mean for each model–τ; faint points show individual token means.](figures/final/fig-pinball-per-token.pdf){#fig-pinball-per-token fig-align="center" width="72%"}
 
-#### Representative fan charts (token case studies)
+## Representative fan charts (token case studies)
 
-To make the cross-section concrete, we show “fan” charts for three representative tokens. Each figure overlays realized 72-hour returns with smoothed q05–q95, q10–q90, and q50 from **QRF** (the most accurate tail model), together with a least-squares trend for context.
+To make the cross-section concrete, we show “fan” charts for two representative tokens. Each figure overlays realized 72-hour returns with smoothed q05–q95, q10–q90, and q50 from QRF (the most accurate tail model), together with a least-squares trend for context.
 
 * **MLG** (high-volatility bursts): bands widen sharply into spikes yet retain coverage.
 * **AVA** (moderate volatility): intervals remain moderate; the conditional median tracks cyclical swings without over-smoothing.
@@ -217,31 +201,29 @@ To make the cross-section concrete, we show “fan” charts for three represent
 
 ![AVA: smoothed quantile curves (q05–q95) vs. realized 72h returns. Bands are moderate with good median tracking.](figures/raw/fig_quantile_spaghetti_ava.pdf){#fig-fan-ava fig-align="center" width="96%"}
 
-> *Optional robustness visual.* If space allows, include a three-model overlay for one token (QRF, LQR, LightGBM) to illustrate the sharpness–coverage trade-off: LightGBM’s intervals appear visibly wider; LQR’s intervals are narrower but miss tails.
+See @fig-compare-80preds for all model prediction intervals overlaid.
 
----
+## Robustness checks
 
-## 5.7 Robustness checks
+We assessed whether the main conclusions depend on specific modelling choices by toggling one component at a time while holding others fixed. The QRF (final) specification serves as the reference.
 
-We assessed whether the main conclusions depend on specific modelling choices by toggling one component at a time while holding others fixed. The **QRF (final)** specification serves as the reference.
+**Toggles evaluated**
 
-#### Toggles evaluated
+- **Decay weights:** ON (half-life = 60 bars) vs OFF.
+- **Calibration wrapper:** regime-aware residual offsets + split-conformal (final) vs split-conformal only (no residual offsets).
+- **Monotone rearrangement:** isotonic non-crossing vs none.
+- **Half-life sensitivity:** 30 vs 90 bars (decay weights ON).
+- **Calibration scope:** **per-token** (final) vs pooled-across-tokens.
 
-* **Decay weights:** ON (half-life = 60 bars) vs OFF.
-* **Calibration wrapper:** regime-aware residual offsets + split-conformal (final) vs **split-conformal only** (no residual offsets).
-* **Monotone rearrangement:** isotonic non-crossing vs none.
-* **Half-life sensitivity:** 30 vs 90 bars (decay weights ON).
-* **Calibration scope:** **per-token** (final) vs pooled-across-tokens.
+**Headline findings**
 
-##### Headline findings
+- **Conformal without regime offsets** (“Split-conformal only”) over-covers and widens bands, confirming the value of the tail-specific regime offsets for keeping widths tight at a given coverage.
+- **No decay weights** has negligible effect on pooled metrics (<1% on widths; ≈0.001 on mean pinball). We keep decay because it is principled for non-stationary series and improves stability in some tokens.
+- **No isotonic** slightly raises mean pinball and width and re-introduces occasional quantile inversions; we retain the monotone rearrangement.
+- **Half-life choice** is not first-order: 30 bars is modestly worse (wider, higher pinball); 90 bars is broadly similar to 60. We keep 60 bars as the accuracy–stability compromise.
+- **Pooled calibration** yields higher micro-average coverage with narrower widths (borrowing strength across tokens), but increases cross-token dispersion in coverage (not shown here; see Appendix), so we prefer per-token calibration for consistent behaviour across assets.
 
-* **Conformal without regime offsets** (“Split-conformal only”) **over-covers** and **widens** bands, confirming the value of the tail-specific regime offsets for keeping widths tight at a given coverage.
-* **No decay weights** has **negligible effect** on pooled metrics (<1% on widths; ≈0.001 on mean pinball). We keep decay because it is principled for non-stationary series and improves stability in some tokens.
-* **No isotonic** slightly **raises mean pinball** and width and re-introduces occasional quantile inversions; we retain the monotone rearrangement.
-* **Half-life choice** is not first-order: 30 bars is modestly worse (wider, higher pinball); 90 bars is broadly similar to 60. We keep **60 bars** as the accuracy–stability compromise.
-* **Pooled calibration** yields higher micro-average coverage with **narrower** widths (borrowing strength across tokens), but **increases cross-token dispersion** in coverage (not shown here; see Appendix), so we prefer **per-token** calibration for consistent behaviour across assets.
-
-##### Robustness summary (micro-averaged deltas)
+**Robustness summary** (micro-averaged deltas)
 
 Table reports deltas vs **QRF (final)**; positive Δwidth means **wider**; ΔCov are **percentage points**.
 
@@ -256,12 +238,11 @@ Table: Robustness summary—deltas relative to QRF (final). {#tbl-robustness}
 | Half-life = 90 bars                 |          -0.001 |         0.034 |         0.113 |         -0.108 |          1.417 |
 | Pooled calibration (not per-token)  |          -0.002 |         5.064 |         3.223 |        -22.427 |        -22.923 |
 
-*Reading guide.* Detailed per-token deltas and HAC-robust tests for each toggle are provided in Appendix **@sec-robustness-details**. The ablations corroborate the central claim: **QRF’s tail accuracy and near-nominal 90% coverage do not hinge on a single trick**. **Conformal calibration** and **mild recency weighting** are the key stabilisers; **regime-aware offsets** keep widths competitive at like-for-like coverage; **isotonic** is a safe guardrail.
+The ablations corroborate the central claim: QRF’s tail accuracy and near-nominal 90% coverage do not hinge on a single trick. Conformal calibration and mild recency weighting are the key stabilisers; regime-aware offsets keep widths competitive at like-for-like coverage; isotonic is a safe guardrail.
 
----
 
-### Closing the results section
+## Closing the results section
 
-Taken together, the evidence paints a consistent picture. **QRF** delivers **lower pinball loss in the lower tail**, **near-nominal 90% coverage**, and **tighter bands** than LightGBM at comparable coverage, while **LQR** under-covers due to narrow intervals. Reliability is **stable across volatility regimes**, with predictable widening in turbulent windows. **Diebold–Mariano tests** confirm that these gains are statistically meaningful for many tokens and quantiles, and the **model confidence set** leaves QRF in the survivor set at most τ. Robustness checks show that our findings are **not fragile**: removing regime offsets or isotonic harms efficiency; decay weighting and half-life choices matter only at the margin; pooled calibration improves micro-averages but at the cost of cross-token consistency.
+Taken together, the evidence paints a consistent picture. QRF delivers lower pinball loss in the lower tail, near-nominal 90% coverage, and tighter bands than LightGBM at comparable coverage, while LQR under-covers due to narrow intervals. Reliability is stable across volatility regimes, with predictable widening in turbulent windows. Diebold–Mariano tests confirm that these gains are statistically meaningful for many tokens and quantiles, and the model confidence set leaves QRF in the survivor set at most τ. Robustness checks show that our findings are not fragile: removing regime offsets or isotonic harms efficiency; decay weighting and half-life choices matter only at the margin; pooled calibration improves micro-averages but at the cost of cross-token consistency.
 
-Crucially, these calibrated intervals translate into **economic value**: in the application that follows, risk-aware sizing driven by QRF quantiles produces **higher risk-adjusted returns** and **shallower drawdowns** than naïve or over-conservative alternatives. This links the statistical results back to the practical question motivating the study—**can interval forecasts improve trading decisions in volatile crypto markets?**—and sets up the portfolio-level evaluation in the next section.
+Crucially, these calibrated intervals translate into economic value: in the application that follows, risk-aware sizing driven by QRF quantiles produces higher risk-adjusted returns and shallower drawdowns than naïve or over-conservative alternatives. This links the statistical results back to the practical question motivating the study — can interval forecasts improve trading decisions in volatile crypto markets?

@@ -1,0 +1,3412 @@
+# Appendix 5: Code
+
+This section contain all major code from EDA, Feature Engineering, Model Building, Analysis and Testing. It will be strucutred in the chronological order of this project. This project remains open-soruce, thus all code from Data ingestion to my specific models can be found on GitHub - `https://github.com/KetchupJL/solana-qrf-interval-forecasting`.
+
+This section won't include code from creating figures, tables, data ingestion, environment setting and essential set ups. For full notebooks with detailed write ups and documentation, visit the projects GitHub repository for access.
+
+Due to the huge amount of code I developed during this project,  large parts of the project arent included within this paper or appendix, but follow the relevent hyperlinks to access them on GitHub.
+
+--- 
+
+**Links to Full Notebooks + Scripts**
+
+- [10+ Data Ingestion Scripts](https://github.com/KetchupJL/solana-qrf-interval-forecasting/tree/main/notebooks/Data%20Ingestion%20Mini%20Scripts){target="_blank" rel="noopener"}
+- [Data Processing Scripts](https://github.com/KetchupJL/solana-qrf-interval-forecasting/tree/main/notebooks/Data%20Processing){target="_blank" rel="noopener"}
+- [EDA Scripts](https://github.com/KetchupJL/solana-qrf-interval-forecasting/tree/main/notebooks/EDA){target="_blank" rel="noopener"}
+- [Feature Engineering Scripts](https://github.com/KetchupJL/solana-qrf-interval-forecasting/tree/main/notebooks/Feature%20Engineering){target="_blank" rel="noopener"}
+- [Model Building, Analysis and Backtesting Scripts](https://github.com/KetchupJL/solana-qrf-interval-forecasting/tree/main/notebooks/Model%20Building){target="_blank" rel="noopener"}
+
+---
+
+## Data Processing and EDA
+
+See the full notebooks here: 
+
+- [1 Loading, Preprocessing and Creating Master Dataset](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Data%20Processing/01data_processing.ipynb){target="_blank" rel="noopener"}
+- [2 Cleaning and checking OHLCV Data](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Data%20Processing/02cleaning_ohlcv_data.ipynb){target="_blank" rel="noopener"}
+- [3 OHLCV Data Imputation](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Data%20Processing/02cleaning_ohlcv_data.ipynb){target="_blank" rel="noopener"}
+- [4 EDA Missingness](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/EDA/01_EDA_missingness.ipynb){target="_blank" rel="noopener"}
+- [5 EDA Return Analysis](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/EDA/02_EDA_return_analysis.ipynb){target="_blank" rel="noopener"}
+- [6 Correlation Analysis](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/EDA/03_EDA_corr_redu_analysis.ipynb){target="_blank" rel="noopener"}
+- [7 Interval Calibration Analysis](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/EDA/04_EDA_interval_calib.ipynb){target="_blank" rel="noopener"}
+- [8 CQR Rolling Calibration](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/EDA/05_CQR_rolling_calibration.ipynb){target="_blank" rel="noopener"}
+- [9 EDA Report (containing all findings)](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/EDA/EDA_REPORT.ipynb){target="_blank" rel="noopener"}
+
+---
+
+#### EDA
+
+Some snippets from the EDA:
+
+- **Creating `logret_12h` and `logret72h` variables**
+
+````
+# Compute Returns
+df = df.sort_values(['token', 'timestamp'])
+
+# 12h log return
+df['logret_12h'] = df.groupby('token')['close_usd'].transform(lambda x: np.log(x / x.shift(1)))
+
+# 72h log return
+df['logret_72h'] = df.groupby('token')['close_usd'].transform(lambda x: np.log(x.shift(-6) / x))
+````
+
+- **Initial Data Summary**
+
+````
+# Schema Summary: Data Types, Uniqueness, Missingness
+import pandas as pd
+import numpy as np
+
+# Shape of dataset
+print("Dataset shape:", df.shape)
+
+# Token count (assuming token column exists)
+if 'token' in df.columns:
+    print("Unique tokens:", df['token'].nunique())
+
+# Time span
+print("Date range:", df['timestamp'].min(), "to", df['timestamp'].max())
+
+# Summary of dtypes, unique counts, missing values
+summary = pd.DataFrame({
+    'dtype': df.dtypes,
+    'n_unique': df.nunique(),
+    'pct_missing': df.isnull().mean() * 100
+}).sort_values(by='pct_missing', ascending=False)
+
+display(summary)
+````
+
+- **Full Feature Missingness Audit (excluding holder count)**
+
+````
+# Drop holder_count column and perform missing audit
+no_holder_df = df.drop(columns=['holder_count'])
+
+# Compute missing percentage for all remaining columns
+missing_summary_alltime = pd.DataFrame({
+    'dtype': no_holder_df.dtypes,
+    'n_unique': no_holder_df.nunique(),
+    'pct_missing': no_holder_df.isnull().mean() * 100
+}).sort_values(by='pct_missing', ascending=False)
+
+missing_summary_alltime.style.format({'pct_missing': "{:.2f}%"})
+````
+
+- **Correlation and Redundancy Analysis (spearman plot)**
+
+````
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# 1. dataset
+df = pd.read_parquet("C:/Users/james/OneDrive/Documents/GitHub/solana-qrf-interval-forecasting/data/05data.parquet")
+
+# 2. Rename only the core features for clarity
+rename_map = {
+    'close_usd': 'token_close_usd',
+    'volume_usd': 'token_volume_usd',
+    'logret_12h': 'return_12h',
+    'logret_72h': 'return_72h',
+    'realized_vol_12h': 'realized_vol_12h',
+    'rolling_skew_50': 'rolling_skew_50',
+    'tail_asymmetry': 'tail_asymmetry',
+    'extreme_freq': 'extreme_freq',
+    'holder_count': 'holder_count',
+    'new_token_accounts': 'new_token_accounts',
+    'transfer_count': 'transfer_count',
+    'btc_eth_price_btc_close': 'btc_close_usd',
+    'btc_eth_price_eth_close': 'eth_close_usd',
+    'sol_price_close': 'sol_close_usd',
+    'sol_price_volume': 'sol_volume_usd',
+    'network_tx_tx_count': 'network_tx_count',
+    'tvl_tvl_usd': 'tvl_usd',
+    'tvl_tvl_change_12h': 'tvl_change_12h',
+    'sol_return': 'sol_return'
+}
+df = df.rename(columns=rename_map)
+
+# 3. Select only these numeric features
+features = [
+    'token_close_usd', 'token_volume_usd',
+    'return_12h', 'return_72h',
+    'realized_vol_12h', 'rolling_skew_50',
+    'tail_asymmetry', 'extreme_freq',
+    'holder_count', 'new_token_accounts', 'transfer_count',
+    'sol_close_usd', 'btc_close_usd', 'eth_close_usd',
+    'tvl_usd', 'tvl_change_12h', 'network_tx_count',
+    'sol_return'
+]
+
+# 4. Subset and drop any rows with missing data in these features
+sub = df[features].dropna()
+
+# 5. Compute Pearson & Spearman correlation matrices
+pearson = sub.corr(method='pearson')
+spearman = sub.corr(method='spearman')
+
+# 6. Plot Pearson correlation heatmap
+plt.figure()
+sns.heatmap(pearson, annot=True, fmt=".2f", cmap="vlag", center=0, linewidths=0.5)
+plt.title("Pearson Correlation Matrix (Key Features)")
+plt.tight_layout()
+plt.gcf().savefig("/Users/james/OneDrive/Documents/GitHub/solana-qrf-interval-forecasting/paper/figures/raw/fig-3-6.pdf",format="pdf", bbox_inches="tight")
+plt.show()
+
+# 7. Plot Spearman correlation heatmap
+plt.figure(figsize=(10, 8))
+sns.heatmap(spearman, annot=True, fmt=".2f", cmap="vlag", center=0, linewidths=0.5)
+plt.title("Spearman Correlation Matrix (Key Features)")
+plt.tight_layout()
+plt.show()
+
+# 8. Identify highly correlated feature pairs (|r| > 0.85)
+mask = np.triu(np.ones_like(pearson, dtype=bool), k=1)
+high_corr = (
+    pearson.where(mask)
+           .stack()
+           .loc[lambda s: s.abs() > 0.85]
+           .sort_values(ascending=False)
+)
+````
+
+- **Interval Calibration Analysis**
+
+````
+import pandas as pd
+from quantile_forest import RandomForestQuantileRegressor
+from sklearn.model_selection import train_test_split
+import numpy as np
+import matplotlib.pyplot as plt
+
+#Load dataset
+file_path = "C:/Users/james/OneDrive/Documents/GitHub/solana-qrf-interval-forecasting/data/06data.parquet"
+df = pd.read_parquet(file_path)
+
+#Using simple features
+features = ['token_volume_usd', 'holder_count', 'sol_volume_usd', 'realized_vol_12h']
+target = 'return_12h'
+
+model_df = df.dropna(subset=features + [target])
+X = model_df[features]
+y = model_df[target]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
+
+qrf = RandomForestQuantileRegressor(random_state=0, n_estimators=100)
+qrf.fit(X_train, y_train)
+
+alphas = np.linspace(0.5, 0.95, 10)
+results = []
+
+for alpha in alphas:
+    lower_q = (1 - alpha) / 2
+    upper_q = 1 - lower_q
+
+    # when you ask for a single quantile, predict() returns 1D
+    lower = qrf.predict(X_test, quantiles=[lower_q])
+    upper = qrf.predict(X_test, quantiles=[upper_q])
+
+    covered = ((y_test >= lower) & (y_test <= upper)).mean()
+    width   = (upper - lower).mean()
+
+    results.append({
+        'nominal':   alpha,
+        'empirical': covered,
+        'width':     width
+    })
+
+qrf_cal = pd.DataFrame(results)
+````
+
+---
+
+### Feature Engineering
+
+See the full notebooks here: 
+- [1 Setting up the full spectrum of Financial Features](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Feature%20Engineering/01_features.ipynb){target="_blank" rel="noopener"}
+- [2 Building a more robust Feature Engineering Pipeline](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Feature%20Engineering/02_features_final.ipynb){target="_blank" rel="noopener"}
+- [3 Feature Pruning](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Feature%20Engineering/03_feature_pruning.ipynb){target="_blank" rel="noopener"}
+
+Some snippets:
+
+- **Creating some essential financial features**
+
+````
+def compute_base_features(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    new_cols = [
+        'logret_12h', 'logret_36h', 'rsi_14', 'roc_3', 'realized_vol_36h',
+        'atr_14', 'spread', 'depth', 'vol_spike', 'delta_wallets',
+        'tx_count_12h', 'ret_SOL', 'ret_BTC', 'ret_ETH', 'tvl_dev'
+    ]
+    df.drop(columns=[c for c in new_cols if c in df.columns], inplace=True, errors='ignore')
+
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df.sort_values(['token', 'timestamp'], inplace=True)
+    g = df.groupby('token')
+    volume = df.get('token_volume_usd', df.get('volume'))
+
+    df['logret_12h'] = g['token_close_usd'].transform(lambda x: np.log(x / x.shift(1)))
+    df['logret_36h'] = g['token_close_usd'].transform(lambda x: np.log(x / x.shift(3)))
+    df['rsi_14'] = g['token_close_usd'].transform(lambda x: rsi(x, 14))
+    df['roc_3'] = g['token_close_usd'].transform(lambda x: (x / x.shift(3) - 1) * 100)
+    
+    df['realized_vol_36h'] = df.groupby('token')['logret_12h'].transform(lambda x: x.rolling(window=3).std())
+
+    df['atr_14'] = df.groupby('token', group_keys=False).apply(lambda grp: atr(grp.get('high_usd', grp.get('high')), grp.get('low_usd', grp.get('low')), grp['token_close_usd'], 14))
+
+    if {'best_ask', 'best_bid'}.issubset(df.columns):
+        mid = (df['best_ask'] + df['best_bid']) / 2
+        df['spread'] = (df['best_ask'] - df['best_bid']) / mid
+    else:
+        df['spread'] = np.nan
+
+    if {'bid_size', 'ask_size'}.issubset(df.columns):
+        df['depth'] = df['bid_size'] + df['ask_size']
+    else:
+        df['depth'] = np.nan
+
+    if volume is not None:
+        df['vol_spike'] = g[volume.name].transform(lambda x: x / x.rolling(14).mean())
+    else:
+        df['vol_spike'] = np.nan
+
+    uniq_wallets = df.get('unique_wallets', df.get('holder_count'))
+    if uniq_wallets is not None:
+        df['delta_wallets'] = g[uniq_wallets.name].transform(lambda x: x.diff())
+    else:
+        df['delta_wallets'] = np.nan
+
+    df['tx_count_12h'] = df.get('tx_count', df.get('network_tx_count'))
+
+    if 'sol_close_usd' in df.columns:
+        df['ret_SOL'] = df['sol_close_usd'].pct_change() * 100
+    if 'btc_close_usd' in df.columns:
+        df['ret_BTC'] = df['btc_close_usd'].pct_change() * 100
+    if 'eth_close_usd' in df.columns:
+        df['ret_ETH'] = df['eth_close_usd'].pct_change() * 100
+    if 'tvl_usd' in df.columns:
+        df['tvl_dev'] = (df['tvl_usd'] / df['tvl_usd'].rolling(14).mean() - 1) * 100
+
+    return df
+````
+
+- **Creating Tail Features**
+
+````
+def tail_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Flag extreme 12-h moves and rolling tail statistics.
+    Threshold = |return_12h| > 2.5 × rolling σ14
+    """
+    g = df.groupby("token")
+    ret  = g["token_close_usd"].pct_change()
+    sigma14 = ret.groupby(df["token"]).transform(lambda s: s.rolling(14).std())
+    extreme = (ret.abs() > 2.5 * sigma14).astype("int")
+
+    df["extreme_move1"]      = extreme
+    df["extreme_flag1"]      = extreme
+    df["tail_positive"]          = (ret >  2.5 * sigma14).astype("int")
+    df["tail_negative"]          = (ret < -2.5 * sigma14).astype("int")
+    # Use .astype(int) to ensure subtraction works without dtype issues
+    df["tail_asym"] = df["tail_positive"].astype(int) - df["tail_negative"].astype(int)
+    df["extreme_count_72h"] = extreme.groupby(df["token"]).transform(lambda s: s.rolling(6).sum())
+
+    return df
+````
+
+- **Pruning - checking for multicollinearity**
+
+````
+from itertools import combinations
+
+#split Stage-1 list back into numeric vs. categorical
+num_keep = [c for c in predictors_stage1 if c in num_feats]
+cat_keep = [c for c in predictors_stage1 if c in cat_feats]
+
+#compute absolute Pearson correlation on numeric part
+corr = df[num_keep].corr().abs()
+
+#scan the upper triangle; mark the *second* feature for dropping
+to_drop = set()
+for (col_i, col_j) in combinations(corr.columns, 2):
+    if corr.loc[col_i, col_j] > 0.98:
+        # keep the first occurrence, drop the second
+        to_drop.add(col_j)
+
+num_after = [c for c in num_keep if c not in to_drop]
+predictors_stage2 = num_after + cat_keep
+
+#inspect what was dropped
+display(sorted(to_drop))
+````
+
+- **LightGBM for predictor importance**
+
+````
+X = df[predictors_stage2]          # predictors from Stage 2
+y = df["return_72h"]
+
+lgb_data = lgb.Dataset(
+    X,
+    label=y,
+    categorical_feature=cat_keep,  # defined in Stage 1
+    free_raw_data=False
+)
+
+params = dict(
+    objective        = "quantile",
+    alpha            = 0.5,          # median
+    learning_rate    = 0.05,
+    num_leaves       = 64,
+    feature_fraction = 0.80,
+    bagging_fraction = 0.80,
+    seed             = 42,
+    verbose          = -1,
+)
+
+gbm = lgb.train(
+    params,
+    lgb_data,
+    num_boost_round = 400
+)
+
+gain = pd.Series(
+    gbm.feature_importance(importance_type="gain"),
+    index = predictors_stage2
+).sort_values(ascending=False)
+
+gain_pct = 100 * gain / gain.sum()
+display(gain_pct.head(20).to_frame("gain_%").style.format({"gain_%":"{:.2f}"}))
+
+#candidate list for Stage 4 pruning
+threshold = 0.3                   # % of total gain
+predictors_stage3 = gain_pct[gain_pct >= threshold].index.tolist()
+````
+
+## Model Building
+
+See the full notebooks here: 
+- [LQR V1](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/01_baseline_LQR.ipynb){target="_blank" rel="noopener"}
+- [LQR Final Model](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/012_baseline_QLR.ipynb){target="_blank" rel="noopener"}
+- [LightGBM V1](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/02_baseline_lightgbm.ipynb){target="_blank" rel="noopener"}
+- [LightGBM V2](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/02_lightgbm_v2.ipynb){target="_blank" rel="noopener"}
+- [LightGBM Final Model](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/02_lightgbm_v3.ipynb){target="_blank" rel="noopener"}
+- [QRF V1](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/03_QRF_v1.ipynb){target="_blank" rel="noopener"}
+- [QRF V2](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/03_QRF_v2.ipynb){target="_blank" rel="noopener"}
+- [QRF V3 and Final Model](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/03_QRF_v3_tuned.ipynb){target="_blank" rel="noopener"}
+
+For full documentation and notes, read through the notebooks. Below is the **raw** model building code.
+
+---
+
+### Linear Quantile Regression
+
+**V1**
+````
+import pandas as pd, numpy as np, statsmodels.api as sm
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import RobustScaler, OneHotEncoder
+from joblib import Parallel, delayed
+from pathlib import Path
+import os, warnings, itertools
+
+#0 · CONFIG
+FEATURE_FILE = "features_v1.parquet"     # frozen Stage-6 dataset
+TARGET       = "return_72h"
+TAUS         = [0.05, 0.25, 0.50, 0.75, 0.95]
+TRAIN, CAL, TEST = 120, 24, 6
+MAX_ITER     = 2_000
+N_JOBS       = max(os.cpu_count() - 1, 1)      # leave 1 core free
+OUT_METRICS  = Path("stage7_linQR_pinball.csv")
+OUT_PRED     = Path("stage7_linQR_preds.csv")
+
+warnings.filterwarnings("ignore", category=UserWarning, module="statsmodels")
+
+#1 · LOAD & PREP
+df = pd.read_parquet(FEATURE_FILE)
+
+EXPLICIT_CAT = ["day_of_week","extreme_flag1","momentum_bucket","tail_asym"]
+for c in EXPLICIT_CAT:
+    if c in df.columns:
+        df[c] = df[c].astype("category")
+
+drop = ["timestamp", "token", TARGET]
+cat_feats = [c for c in df.columns if df[c].dtype.name == "category"]
+num_feats = [c for c in df.columns if c not in drop + cat_feats]
+predictors = num_feats + cat_feats
+
+pre_template = ColumnTransformer([
+    ("num", RobustScaler(), num_feats),
+    ("cat", OneHotEncoder(drop="first",
+                          sparse_output=False,
+                          handle_unknown="ignore"), cat_feats)
+])
+
+MISSING_MEDIAN_COLS = [c for c in df.columns
+                       if "holder" in c or "tx_per_account" in c]
+
+def impute_median(X):
+    X = X.copy()
+    for col in MISSING_MEDIAN_COLS:
+        if col in X:
+            X[col] = X[col].fillna(X[col].median(skipna=True))
+    return X.fillna(0)
+
+#2 · ROLLING SPLITS 
+def rolling_indices(frame):
+    idx = frame.index
+    total = len(idx)
+    for start in range(0, total - (TRAIN + CAL + TEST) + 1, TEST):
+        tr = idx[start : start + TRAIN]
+        te = idx[start + TRAIN + CAL : start + TRAIN + CAL + TEST]
+        if len(te) == TEST:
+            yield tr, te
+
+#3 · ONE FOLD
+def fit_fold(g, tr_idx, te_idx, tok):
+    X_tr  = impute_median(g.loc[tr_idx, predictors])
+    y_tr  = g.loc[tr_idx, TARGET].values
+    X_te  = impute_median(g.loc[te_idx, predictors])
+    y_te  = g.loc[te_idx, TARGET].values
+    pre   = pre_template.fit(X_tr)
+    X_trA = pre.transform(X_tr)
+    X_teA = pre.transform(X_te)
+
+    fold_res, fold_pred = [], []
+    for tau in TAUS:
+        mod = sm.QuantReg(y_tr,
+                          sm.add_constant(X_trA, has_constant='add')
+                         ).fit(q=tau, method="highs", max_iter=MAX_ITER)
+
+        y_hat = mod.predict(sm.add_constant(X_teA, has_constant='add'))
+        err   = y_te - y_hat
+        pin   = np.maximum(tau*err, (tau-1)*err).mean()
+
+        fold_res.append(dict(tau=tau, pinball=pin))
+        fold_pred.extend([dict(timestamp  = g.loc[i, "timestamp"],
+                               token      = tok,
+                               tau        = tau,
+                               y_true     = yt,
+                               y_pred     = yh)
+                          for i, yt, yh in zip(te_idx, y_te, y_hat)])
+    return fold_res, fold_pred
+
+#4 · PARALLEL TOKENS
+def run_token(tok, g):
+    token_metrics, token_preds = [], []
+    for tr_idx, te_idx in rolling_indices(g):
+        res, pred = fit_fold(g, tr_idx, te_idx, tok)
+        token_metrics.extend(res)
+        token_preds.extend(pred)
+    return token_metrics, token_preds
+
+results = Parallel(n_jobs=N_JOBS, verbose=5)(
+    delayed(run_token)(tok, grp) for tok, grp in df.groupby("token")
+)
+
+#flatten
+metrics = list(itertools.chain.from_iterable(r[0] for r in results))
+preds   = list(itertools.chain.from_iterable(r[1] for r in results))
+
+#5 · SAVE & REPORT 
+pd.DataFrame(metrics).to_csv(OUT_METRICS, index=False)
+pd.DataFrame(preds  ).to_csv(OUT_PRED,   index=False)
+````
+
+**LQR Final Model**
+
+````
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from statsmodels.regression.quantile_regression import QuantReg as QR
+
+num_cols = [c for c in feat_cols if df[c].dtype != "object"]
+cat_cols = ["token", "momentum_bucket", "day_of_week"]      # treat as categoricals
+
+pre = ColumnTransformer([
+        ("num", StandardScaler(), num_cols),
+        ("cat", OneHotEncoder(drop="first", handle_unknown="ignore"), cat_cols)
+      ],
+      remainder="drop")
+
+horizon       = 30    # rows in each test fold
+train_window  = 120   # rows in each training window
+quantiles     = [0.10, 0.50, 0.90]
+
+fold_metrics  = []    # one row per fold × token × τ
+pred_records  = []    # one row per observation in every test fold
+
+for tkn, g in df.groupby("token"):
+    g = g.reset_index(drop=True)
+    for f, start in enumerate(range(0,
+                                    len(g) - (train_window + horizon) + 1,
+                                    horizon), start=1):
+        train = g.iloc[start : start + train_window]
+        test  = g.iloc[start + train_window :
+                       start + train_window + horizon]
+
+        # fit scaler / encoder **only on the training slice**
+        X_train = pre.fit_transform(train)
+        X_test  = pre.transform(test)
+        y_train = train["return_72h"].values
+        y_test  = test["return_72h"].values
+
+        fold_preds = {}
+        for q in quantiles:
+            model = QR(y_train, X_train).fit(q=q, max_iter=5000)
+            fold_preds[q] = model.predict(X_test)
+
+        # post-hoc non-crossing safeguard
+        fold_preds[0.10] = np.minimum(fold_preds[0.10], fold_preds[0.50])
+        fold_preds[0.90] = np.maximum(fold_preds[0.90], fold_preds[0.50])
+
+        # -------- collect per-row records --------
+        for i in range(len(test)):
+            pred_records.append({
+                "token":      tkn,
+                "timestamp":  test.iloc[i]["timestamp"],
+                "fold":       f,
+                "y_true":     y_test[i],
+                "q10_pred":   fold_preds[0.10][i],
+                "q50_pred":   fold_preds[0.50][i],
+                "q90_pred":   fold_preds[0.90][i],
+            })
+
+        # -------- collect per-fold metrics --------
+        inside80 = ((y_test >= fold_preds[0.10]) &
+                    (y_test <= fold_preds[0.90]))
+        fold_metrics.append({
+            "token":     tkn,
+            "fold":      f,
+            "tau":      "80PI",
+            "coverage":  inside80.mean(),
+            "width":     (fold_preds[0.90] - fold_preds[0.10]).mean(),
+        })
+        for q in quantiles:
+            err = y_test - fold_preds[q]
+            pinball = np.maximum(q*err, (q-1)*err).mean()
+            fold_metrics.append({
+                "token":    tkn,
+                "fold":     f,
+                "tau":      q,
+                "pinball":  pinball
+            })
+
+#3.  Save artefacts
+pd.DataFrame(pred_records).to_csv("lqr_pred_paths.csv",  index=False)
+pd.DataFrame(fold_metrics).to_csv("lqr_fold_metrics.csv", index=False)
+
+print("Finished!  Predictions → lqr_pred_paths.csv;  metrics → lqr_fold_metrics.csv")
+````
+
+---
+
+### Light GBM
+
+**V1**
+````
+import pandas as pd, numpy as np, lightgbm as lgb
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from joblib import Parallel, delayed
+import os, itertools, warnings, json
+
+DATA_FILE = "features_v1_tail.csv"
+TARGET    = "return_72h"
+QUANTS    = [0.05, 0.25, 0.50, 0.75, 0.95]
+
+df = (pd.read_csv(DATA_FILE, parse_dates=["timestamp"])
+        .sort_values(["token", "timestamp"])
+        .reset_index(drop=True))
+
+cat_cols = ["day_of_week","momentum_bucket", "extreme_flag1", "tail_asym","vol_regime", "token"]
+num_cols = [c for c in df.columns
+            if c not in cat_cols + ["timestamp", TARGET]]
+
+#one-hot → dense matrix; LightGBM handles NaN in numeric naturally
+
+pre = ColumnTransformer([
+        ("cats", OneHotEncoder(drop="first",
+                               handle_unknown="ignore",
+                               sparse_output=False), cat_cols)
+      ],
+      remainder="passthrough")
+
+TRAIN, CAL, TEST = 120, 24, 6     # bars (~60d, 12d, 3d)
+
+def rolling_splits(idx):
+    for start in range(0, len(idx) - (TRAIN + CAL + TEST) + 1, TEST):
+        tr = idx[start : start + TRAIN]
+        cal = idx[start + TRAIN : start + TRAIN + CAL]
+        te = idx[start + TRAIN + CAL : start + TRAIN + CAL + TEST]
+        if len(te) == TEST:
+            yield tr, cal, te
+
+def fit_one_fold(g, tr_idx, cal_idx, te_idx):
+    """
+    Fit LightGBM-quantile on one rolling window and return
+    • fold_pred : list[dict]  (row-level predictions)
+    • fold_res  : list[dict]  (fold-level pinball loss)
+    """
+    # ── matrices ─────────────────────────────────────────
+    X_tr  = pre.fit_transform(g.loc[tr_idx, cat_cols + num_cols])
+    y_tr  = g.loc[tr_idx, TARGET].values
+    X_cal = pre.transform(g.loc[cal_idx, cat_cols + num_cols])
+    y_cal = g.loc[cal_idx, TARGET].values
+    X_te  = pre.transform(g.loc[te_idx, cat_cols + num_cols])
+    y_te  = g.loc[te_idx, TARGET].values
+
+    token_id = g["token"].iloc[0]      # ← safe token label
+
+    fold_pred, fold_res = [], []
+
+    for tau in QUANTS:
+        mdl = lgb.LGBMRegressor(
+            objective="quantile", alpha=tau,
+            n_estimators=500, learning_rate=0.05,
+            max_depth=-1, subsample=0.9, colsample_bytree=0.9,
+            min_child_samples=20, random_state=42
+        )
+        mdl.fit(X_tr, y_tr)
+
+        # ── base predictions ─────────────────────────────
+        cal_hat = mdl.predict(X_cal)
+        te_hat  = mdl.predict(X_te)
+
+        # ── split-conformal adjustment ───────────────────
+        resid = y_cal - cal_hat
+        if tau < 0.5:
+            adj = np.quantile(np.maximum(resid, 0), 1 - tau)
+            te_adj = te_hat - adj
+        elif tau > 0.5:
+            adj = np.quantile(np.maximum(-resid, 0), 1 - (1 - tau))
+            te_adj = te_hat + adj
+        else:                       # τ = 0.50
+            te_adj = te_hat
+
+        # ── per-row predictions ──────────────────────────
+        fold_pred.extend({
+            "timestamp": g.loc[i, "timestamp"],
+            "token":     token_id,
+            "tau":       tau,
+            "y_true":    yt,
+            "y_pred":    yp
+        } for i, yt, yp in zip(te_idx, y_te, te_adj))
+
+        # ── fold-level pinball loss ──────────────────────
+        err = y_te - te_adj
+        pin = np.maximum(tau*err, (tau-1)*err).mean()
+        fold_res.append({
+            "token":   token_id,
+            "tau":     tau,
+            "pinball": pin
+        })
+
+    return fold_pred, fold_res
+
+def run_token(tok, grp):
+    preds, metrics = [], []
+    for tr, cal, te in rolling_splits(grp.index):
+        p, m = fit_one_fold(grp, tr, cal, te)
+        preds.extend(p); metrics.extend(m)
+    return preds, metrics
+
+n_jobs = max(os.cpu_count()-1, 1)
+results = Parallel(n_jobs=n_jobs, verbose=5)(
+    delayed(run_token)(tok, grp.reset_index(drop=True))
+    for tok, grp in df.groupby("token"))
+
+preds   = list(itertools.chain.from_iterable(r[0] for r in results))
+metrics = list(itertools.chain.from_iterable(r[1] for r in results))
+
+pd.DataFrame(preds).to_csv("stage7_lgb_preds.csv", index=False)
+pd.DataFrame(metrics).to_csv("stage7_lgb_pinball.csv", index=False)
+
+print(pd.DataFrame(metrics)
+        .groupby("tau")["pinball"].mean()
+        .round(4))
+````
+
+**V2**
+
+````
+#Optuna search space 
+
+
+def suggest_params(trial, tau: float) -> dict:
+    return {
+        # ----- core CQR settings -----
+        "objective" : "quantile",
+        "metric"    : "quantile",
+        "alpha"     : tau,
+        "device_type": "gpu" if gpu_available else "cpu",
+
+        # ----- tree complexity -----
+        "learning_rate" : trial.suggest_float("lr",      0.005, 0.1,  log=True),
+        "num_leaves"    : trial.suggest_int(  "leaves",      32, 256, log=True),
+        "max_depth"     : trial.suggest_int(  "depth",        4, 14),
+        "min_data_in_leaf":
+                          trial.suggest_int(  "min_leaf",     5, 300, log=True),
+
+        # ----- randomness & regularisation -----
+        "feature_fraction": trial.suggest_float("feat_frac", 0.4, 1.0),
+        "bagging_fraction": trial.suggest_float("bag_frac",  0.4, 1.0),
+        "bagging_freq"    : trial.suggest_int(  "bag_freq",      0, 15),
+
+        # **FIX**: low bound must be > 0 when log=True  → use 1e-8
+        "lambda_l1" : trial.suggest_float("l1", 1e-8, 5.0, log=True),
+        "lambda_l2" : trial.suggest_float("l2", 1e-8, 5.0, log=True),
+
+        "min_gain_to_split":
+                          trial.suggest_float("gamma",     0.0, 0.4),
+
+        # ----- training length -----
+        "num_iterations"        : 8000,
+        "early_stopping_round"  : 400,      # (LightGBM’s param without the “s”)
+        "verbosity"             : -1,
+        "seed"                  : 42,
+        "n_jobs"                : -1,       # all 24 logical threads
+    }
+
+#3.  Objective function uses the *existing* X, y, cat_idx
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_pinball_loss      # scikit-learn ≥1.1
+import lightgbm as lgb
+
+def pinball(y_true, y_pred, tau):
+    """Lightweight pinball without sklearn if preferred."""
+    diff = y_true - y_pred
+    return np.maximum(tau*diff, (tau-1)*diff).mean()
+
+def objective(trial, tau):
+    params = suggest_params(trial, tau)
+
+    X_tr, X_val, y_tr, y_val = train_test_split(
+        X, y, test_size=0.15, random_state=trial.number)
+
+    # ★ pass DataFrames directly
+    lgb_train = lgb.Dataset(X_tr, label=y_tr)
+    lgb_val   = lgb.Dataset(X_val, label=y_val, reference=lgb_train)
+
+    booster = lgb.train(params,
+                        train_set=lgb_train,
+                        valid_sets=[lgb_val],
+                        verbose_eval=False)
+
+    y_hat = booster.predict(X_val, num_iteration=booster.best_iteration)
+    loss  = pinball(y_val, y_hat, tau)
+    trial.set_user_attr("best_iter", booster.best_iteration)
+    return loss
+
+
+#5.  Run Optuna – **quiet** parallel search (20 workers)
+#One loop per quantile 0.05 … 0.95
+
+import optuna, time, json
+from optuna.samplers import TPESampler
+from optuna.pruners  import HyperbandPruner
+
+optuna.logging.set_verbosity(optuna.logging.WARNING)          # mute per-trial chatter
+
+def _heartbeat(tau):
+    """Print a single status line every 30 finished trials."""
+    def cb(study, trial):
+        if len(study.trials) % 30 == 0:
+            print(f"τ={tau:.2f} | {len(study.trials):3d} trials "
+                  f"| best pinball = {study.best_value:.4f}")
+    return cb
+
+
+QUANTS       = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
+best_params  = {}
+
+for tau in QUANTS:
+    
+    sampler = TPESampler(seed=42, multivariate=True)
+    pruner  = HyperbandPruner(min_resource=200, max_resource=8000)
+
+    study = optuna.create_study(
+        direction   = "minimize",
+        sampler     = sampler,
+        pruner      = pruner,
+        study_name  = f"lgb_cqr_tau{tau:.2f}",
+        storage     = f"sqlite:///lgb_cqr_tau{tau:.2f}.db",
+        load_if_exists=True
+    )
+
+    t0 = time.time()
+    study.optimize(
+        lambda t: objective(t, tau),
+        n_trials   = 300,
+        n_jobs     = 20,              # 24-core workstation – leave 4 for OS/Jupyter
+        timeout    = 3 * 3600,
+        callbacks  = [_heartbeat(tau)],
+        show_progress_bar = False
+    )
+
+    print(f"✅  τ={tau:.2f}: best pinball = {study.best_value:.4f} "
+          f"@ {study.best_trial.user_attrs['best_iter']} trees "
+          f"({time.time()-t0:.1f}s)")
+
+    p = study.best_params
+    p.update(objective="quantile",
+             metric   ="quantile",
+             alpha    = tau,
+             num_iterations = study.best_trial.user_attrs["best_iter"])
+    best_params[tau] = p
+
+json.dump(best_params, open("best_lgb_cqr_params.json", "w"), indent=2)
+
+
+
+best_params = json.load(open("best_lgb_cqr_params.json"))
+
+QUANTS    = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
+
+df = (pd.read_csv(DATA_FILE, parse_dates=["timestamp"])
+        .sort_values(["token", "timestamp"])
+        .reset_index(drop=True))
+
+cat_cols = ["day_of_week","momentum_bucket", "extreme_flag1", "tail_asym","vol_regime", "token"]
+num_cols = [c for c in df.columns
+            if c not in cat_cols + ["timestamp", TARGET]]
+
+#one-hot → dense matrix; LightGBM handles NaN in numeric naturally
+pre = ColumnTransformer([
+        ("cats", OneHotEncoder(drop="first",
+                               handle_unknown="ignore",
+                               sparse_output=False), cat_cols)
+      ],
+      remainder="passthrough")
+
+TRAIN, CAL, TEST = 120, 24, 6      # ≈ 60 d · 12 d · 3 d
+
+def rolling_splits(idx):
+    for start in range(0, len(idx) - (TRAIN+CAL+TEST) + 1, TEST):
+        tr  = idx[start : start+TRAIN]
+        cal = idx[start+TRAIN : start+TRAIN+CAL]
+        te  = idx[start+TRAIN+CAL : start+TRAIN+CAL+TEST]
+        if len(te) == TEST:
+            yield tr, cal, te
+
+def fit_one_fold_tuned(g, tr_idx, cal_idx, te_idx):
+    X_tr  = pre.fit_transform(g.loc[tr_idx, cat_cols+num_cols])
+    y_tr  = g.loc[tr_idx, TARGET].values
+    X_cal = pre.transform(g.loc[cal_idx, cat_cols+num_cols])
+    y_cal = g.loc[cal_idx, TARGET].values
+    X_te  = pre.transform(g.loc[te_idx,  cat_cols+num_cols])
+    y_te  = g.loc[te_idx,  TARGET].values
+
+    token_id = g["token"].iloc[0]
+
+    fold_pred, fold_res = [], []
+
+    for tau in QUANTS:
+        #-------- instantiate model with its own tuned dict --------
+        p = best_params[str(tau)].copy()
+        mdl = lgb.LGBMRegressor(**p)           #LGBM wrapper lets us keep .predict API
+        mdl.fit(X_tr, y_tr, verbose=False)
+
+        #-------- base preds --------
+        cal_hat = mdl.predict(X_cal)
+        te_hat  = mdl.predict(X_te)
+
+        #-------- conformal adjust (same logic) --------
+        resid = y_cal - cal_hat
+        if tau < 0.5:
+            adj    = np.quantile(np.maximum(resid, 0), 1 - tau)
+            te_adj = te_hat - adj
+        elif tau > 0.5:
+            adj    = np.quantile(np.maximum(-resid, 0), 1 - (1 - tau))
+            te_adj = te_hat + adj
+        else:
+            te_adj = te_hat
+
+        #-------- per-row store --------
+        fold_pred.extend({
+            "timestamp": g.loc[i, "timestamp"],
+            "token":     token_id,
+            "tau":       tau,
+            "y_true":    yt,
+            "y_pred":    yp
+        } for i, yt, yp in zip(te_idx, y_te, te_adj))
+
+        #-------- fold pinball --------
+        err = y_te - te_adj
+        pin = np.maximum(tau*err, (tau-1)*err).mean()
+        fold_res.append({"token": token_id, "tau": tau, "pinball": pin})
+
+        del mdl; gc.collect()
+
+    return fold_pred, fold_res
+
+def run_token(tok, grp):
+    preds, mets = [], []
+    for tr, cal, te in rolling_splits(grp.index):
+        p, m = fit_one_fold_tuned(grp, tr, cal, te)
+        preds.extend(p);  mets.extend(m)
+    return preds, mets
+
+n_jobs = max(os.cpu_count()-1, 1)
+results = Parallel(n_jobs=n_jobs, verbose=5)(
+    delayed(run_token)(tok, g.reset_index(drop=True))
+    for tok, g in df.groupby("token")
+)
+
+preds   = list(itertools.chain.from_iterable(r[0] for r in results))
+metrics = list(itertools.chain.from_iterable(r[1] for r in results))
+
+pd.DataFrame(preds  ).to_csv("lgb_tuned_preds.csv",   index=False)
+pd.DataFrame(metrics).to_csv("lgb_tuned_pinball.csv", index=False)
+
+
+print(pd.DataFrame(metrics).groupby("tau")["pinball"].mean().round(4))
+````
+
+**LightGBM Final Model**
+
+````
+#LightGBM-Conformal v4  –  “tighter fan” edition  (WIDE CSV OUTPUT)
+
+import json, gc, os, warnings, itertools
+import numpy  as np
+import pandas as pd
+import lightgbm as lgb
+from joblib import Parallel, delayed
+from tqdm.auto import tqdm
+
+warnings.filterwarnings("ignore", category=UserWarning)
+
+#0. I/O & meta 
+DATA_FILE   = "features_v1_tail.csv"          # cleaned matrix
+PARAM_FILE  = "best_lgb_cqr_params.json"      # Optuna winners (v2)
+TARGET      = "return_72h"
+
+COVER       = 0.80         # desired PI coverage
+alpha_tail  = (1 - COVER) / 2.0   # 0.10  for two-sided 80 %
+
+QUANTS      = [alpha_tail, 0.10, 0.25, 0.50, 0.75, 0.90, 1 - alpha_tail]  # 0.10 0.25 0.5 …
+
+#1. data 
+df = (pd.read_csv(DATA_FILE, parse_dates=["timestamp"])
+        .sort_values(["token", "timestamp"])
+        .reset_index(drop=True))
+
+cat_cols = ["token", "momentum_bucket", "day_of_week"]
+num_cols = [c for c in df.columns if c not in cat_cols + ["timestamp", TARGET]]
+
+#cast categoricals → category dtype (LightGBM native)
+for c in cat_cols:
+    df[c] = df[c].astype("category")
+
+from sklearn.preprocessing import StandardScaler, OrdinalEncoder
+from sklearn.compose import ColumnTransformer
+
+#Preprocessing pipeline: scale numerics, encode categoricals
+pre = ColumnTransformer(
+    transformers=[
+        ("num", StandardScaler(), num_cols),
+        ("cat", OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1), cat_cols)
+    ],
+    remainder="drop"
+)
+pre.fit(df[cat_cols + num_cols])
+
+#2. rolling splits -----------------
+TRAIN, CAL, TEST = 120, 24, 6          # 60 d · 12 d · 3 d
+
+def rolling_splits(idx):
+    step = TEST
+    for start in range(0, len(idx) - (TRAIN+CAL+TEST) + 1, step):
+        tr  = idx[start : start+TRAIN]
+        cal = idx[start+TRAIN : start+TRAIN+CAL]
+        te  = idx[start+TRAIN+CAL : start+TRAIN+CAL+TEST]
+        if len(te) == TEST:
+            yield tr, cal, te
+
+#3. conformal helper ---------------
+
+#Load best_params from JSON file
+with open(PARAM_FILE, "r") as f:
+    best_params = json.load(f)
+
+def cqr_adjust(pred_te, resid_cal, tau):
+    """
+    • For lower bound (tau < 0.5):  subtract q̂_{1-α/2}(r⁺)
+    • For upper bound (tau > 0.5):  add     q̂_{1-α/2}(r⁺)
+    Ensures ≈ (1-α) two-sided coverage.
+    """
+    if tau < 0.5:
+        r_plus = np.maximum(resid_cal, 0.0)
+        q_adj  = np.quantile(r_plus, 1 - alpha_tail)
+        return pred_te - q_adj
+    elif tau > 0.5:
+        r_plus = np.maximum(-resid_cal, 0.0)
+        q_adj  = np.quantile(r_plus, 1 - alpha_tail)
+        return pred_te + q_adj
+    else:
+        return pred_te          # median – no shift
+
+def params_for_tau(tau: float) -> dict:
+    # try all reasonable key variants
+    for k in (tau, str(tau), f"{tau:.2f}", f"{tau:.3f}"):
+        if k in best_params:
+            p = best_params[k].copy()
+            break
+    else:                                # no exact key found
+        nearest = min(best_params.keys(),
+                      key=lambda k: abs(float(k) - tau))
+        p = best_params[nearest].copy()
+
+    p["alpha"] = tau                     # overwrite with the true τ
+    return p
+
+#4. per-fold fit -------------------
+def find_lambda(lower, upper, y_cal, cover=0.80):
+    """
+    Smallest non-negative λ such that
+        P( y ∈ [lower-λ , upper+λ] ) ≥ cover
+    on the calibration slice.
+    """
+    λ = 0.0
+    step = np.percentile(upper - lower, 75) * 0.02      # 2 % IQR heuristic
+    while True:
+        inside = ((y_cal >= (lower - λ)) & (y_cal <= (upper + λ))).mean()
+        if inside >= cover or λ > 10.0:
+            return λ
+        λ += step
+
+#fit one rolling window -----------------
+def fit_one_fold(g, tr_idx, cal_idx, te_idx):
+    X_tr  = pre.fit_transform(g.loc[tr_idx, cat_cols+num_cols]).astype("float32")
+    y_tr  = g.loc[tr_idx, TARGET].values
+    X_cal = pre.transform   (g.loc[cal_idx, cat_cols+num_cols]).astype("float32")
+    y_cal = g.loc[cal_idx, TARGET].values
+    X_te  = pre.transform   (g.loc[te_idx,  cat_cols+num_cols]).astype("float32")
+    y_te  = g.loc[te_idx,  TARGET].values
+
+    token_id  = g["token"].iloc[0]
+    fold_pred, fold_res = [], []
+
+    base_models, base_preds_cal, base_preds_te = {}, {}, {}
+    for tau in [0.05, 0.10, 0.50, 0.90, 0.95]:
+        p = params_for_tau(tau)
+        p.update(num_iterations=4000, early_stopping_round=200, verbose=-1)
+        mdl = lgb.LGBMRegressor(**p)
+        mdl.fit(X_tr, y_tr, eval_set=[(X_cal, y_cal)], eval_metric="quantile")
+        base_models[tau]      = mdl
+        base_preds_cal[tau]   = mdl.predict(X_cal)
+        base_preds_te[tau]    = mdl.predict(X_te)
+
+    #Conformal adjustment for extreme quantiles (0.05, 0.95)
+    adjusted_te, adjusted_cal = {}, {}
+    for tau in [0.05, 0.10, 0.50, 0.90, 0.95]:
+        resid_cal            = y_cal - base_preds_cal[tau]
+        adjusted_te[tau]     = cqr_adjust(base_preds_te[tau], resid_cal, tau)
+        adjusted_cal[tau]    = cqr_adjust(base_preds_cal[tau], resid_cal, tau)
+
+    #Adaptive λ to ensure central 80 % coverage
+    lower_cal = adjusted_cal[0.10]
+    upper_cal = adjusted_cal[0.90]
+    λ_star    = find_lambda(lower_cal, upper_cal, y_cal, cover=COVER)
+
+    #Min-width floor (15 % of σ_cal)
+    sigma_cal = np.std(y_cal)
+    min_w     = 0.15 * sigma_cal
+    λ_final   = np.maximum(λ_star, min_w)
+
+    #Adjusted TEST predictions
+    lower_te  = adjusted_te[0.10] - λ_final
+    upper_te  = adjusted_te[0.90] + λ_final
+    median_te = adjusted_te[0.50]
+
+
+    #Store row-level preds (LONG) & pinball
+    mapping = {
+        0.05: adjusted_te[0.05],
+        0.10: lower_te,
+        0.25: 0.25 * lower_te + 0.75 * median_te,
+        0.50: median_te,
+        0.75: 0.75 * median_te + 0.25 * upper_te,
+        0.90: upper_te,
+        0.95: adjusted_te[0.95],
+    }
+
+    for tau, preds in mapping.items():
+        # per-row predictions
+        fold_pred.extend({
+            "timestamp": g.loc[i, "timestamp"],
+            "token":     token_id,
+            "tau":       tau,
+            "y_true":    yt,
+            "y_pred":    yp
+        } for i, yt, yp in zip(te_idx, y_te, preds))
+
+        # pinball
+        err = y_te - preds
+        pin = np.maximum(tau*err, (tau-1)*err).mean()
+        fold_res.append({"token": token_id, "tau": tau, "pinball": pin})
+
+    del base_models; gc.collect()
+    return fold_pred, fold_res
+
+#5. parallel run -------------------
+def run_token(tok, grp):
+    preds, mets = [], []
+    for tr, cal, te in rolling_splits(grp.index):
+        p, m = fit_one_fold(grp, tr, cal, te)
+        preds.extend(p); mets.extend(m)
+    return preds, mets
+
+results = Parallel(n_jobs=max(os.cpu_count()-2, 1), verbose=5)(
+    delayed(run_token)(tok, g.reset_index(drop=True))
+    for tok, g in tqdm(df.groupby("token"), desc="tokens"))
+
+preds   = list(itertools.chain.from_iterable(r[0] for r in results))
+metrics = list(itertools.chain.from_iterable(r[1] for r in results))
+
+#6. save (WIDE preds + pinball) ----
+preds_long = pd.DataFrame(preds)
+
+#pivot to wide: one row per token/timestamp, qXX_pred columns
+wide = (preds_long
+        .pivot_table(index=["token","timestamp"],
+                     columns="tau", values="y_pred", aggfunc="first")
+        .reset_index())
+
+tau_to_col = {0.05:"q05_pred", 0.10:"q10_pred", 0.25:"q25_pred",
+              0.50:"q50_pred", 0.75:"q75_pred", 0.90:"q90_pred", 0.95:"q95_pred"}
+wide = wide.rename(columns=tau_to_col)
+
+#attach y_true (first per token/timestamp)
+y_first = (preds_long.groupby(["token","timestamp"])["y_true"]
+                     .first()
+                     .reset_index())
+wide = y_first.merge(wide, on=["token","timestamp"], how="left")
+
+#reorder columns
+ordered_cols = ["token","timestamp","y_true",
+                "q05_pred","q10_pred","q25_pred","q50_pred",
+                "q75_pred","q90_pred","q95_pred"]
+wide = wide.reindex(columns=ordered_cols)
+# 
+wide.to_csv("lgb_extended_preds.csv", index=False)
+pd.DataFrame(metrics).to_csv("lgb_v4_pinball.csv", index=False)
+
+#7. quick summary ------------------
+met = (pd.DataFrame(metrics)
+         .groupby("tau")["pinball"].mean()
+         .round(4))
+
+print(met)
+
+#Empirical 80 % central coverage using wide preds
+
+inside = ((wide["y_true"] >= wide["q10_pred"]) &
+          (wide["y_true"] <= wide["q90_pred"])).mean()
+print(f"Empirical {int(COVER*100)} % coverage : {inside*100:.2f} %")
+````
+
+---
+
+### Quantile Regression Forests
+
+**V1**
+
+````
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import mean_pinball_loss
+from tqdm.auto import tqdm
+from quantile_forest import RandomForestQuantileRegressor
+import os
+
+#Quantiles to predict
+
+quantiles = [0.10, 0.25, 0.50, 0.75, 0.90]
+
+
+def enforce_monotonicity(q_preds: np.ndarray) -> np.ndarray:
+    #Sort each row of predicted quantiles to prevent crossing
+    return np.sort(q_preds, axis=1)
+
+feature_path = "features_v1_tail.csv"
+if not os.path.exists(feature_path):
+    raise FileNotFoundError(f'{feature_path} not found. Place it in the working directory.')
+
+full_df = pd.read_csv(feature_path)
+full_df = full_df.sort_values(['token', 'timestamp']).reset_index(drop=True)
+
+target_col = 'return_72h'
+feature_cols = [c for c in full_df.columns if c not in [target_col, 'timestamp']]
+
+categorical_cols = [c for c in feature_cols if c in ['token', 'momentum_bucket', 'day_of_week', 'extreme_flag1', 'tail_asym', 'vol_regime']]
+numeric_cols = [c for c in feature_cols if c not in categorical_cols]
+
+preprocessor = ColumnTransformer([
+    ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_cols),
+    ('num', 'passthrough', numeric_cols)
+])
+
+all_preds = []
+fold_losses = []
+
+TRAIN_BARS = 120
+CAL_BARS = 24
+TEST_BARS = 6
+STEP = 6
+
+tokens = full_df['token'].unique().tolist()
+
+for token in tqdm(tokens, desc='Tokens'):
+    df_tok = full_df[full_df['token'] == token].reset_index(drop=True)
+    n_rows = len(df_tok)
+    start_idx = 0
+    fold_num = 0
+    while start_idx + TRAIN_BARS + CAL_BARS + TEST_BARS <= n_rows:
+        train_slice = slice(start_idx, start_idx + TRAIN_BARS)
+        test_slice = slice(start_idx + TRAIN_BARS + CAL_BARS, start_idx + TRAIN_BARS + CAL_BARS + TEST_BARS)
+
+        train_df = df_tok.iloc[train_slice]
+        test_df = df_tok.iloc[test_slice]
+
+        X_train, y_train = train_df[feature_cols], train_df[target_col]
+        X_test, y_test = test_df[feature_cols], test_df[target_col]
+
+        qrf = RandomForestQuantileRegressor(n_estimators=1000,
+                                            max_depth=None,
+                                            min_samples_leaf=10,
+                                            max_features='sqrt',
+                                            random_state=42,
+                                            n_jobs=-1)
+
+        pipeline = Pipeline([
+            ('preprocess', preprocessor),
+            ('model', qrf)
+        ])
+
+        pipeline.fit(X_train, y_train)
+        preds = pipeline.predict(X_test, quantiles=quantiles)
+        preds = enforce_monotonicity(preds)
+
+        losses = [mean_pinball_loss(y_test, preds[:, i], alpha=q) for i, q in enumerate(quantiles)]
+
+        for idx, true_val in enumerate(y_test):
+            row_pred = {'token': token, 'timestamp': test_df.iloc[idx]['timestamp'], 'y_true': true_val}
+            for i, q in enumerate(quantiles):
+                row_pred[f'pred_q{int(q*100):02d}'] = preds[idx, i]
+            all_preds.append(row_pred)
+
+        fold_losses.append({
+            'token': token,
+            'fold': fold_num,
+            **{f'pinball_q{int(q*100):02d}': loss for q, loss in zip(quantiles, losses)}
+        })
+
+        fold_num += 1
+        start_idx += STEP
+````
+
+**V2**
+
+````
+def compute_decay_weights(n: int, half_life: float = 60.0) -> np.ndarray:
+
+    #Compute exponentially decaying weights for a sequence of length n.
+    #Each successive element receives weight exp(-k / (half_life / log(2))), where k is the index from 0 to n-1.
+
+    decay_constant = half_life / np.log(2)
+    indices = np.arange(n)[::-1]  # reverse so most recent observation has index 0
+    weights = np.exp(-indices / decay_constant)
+    return weights / weights.sum()
+
+
+def winsorize_residuals(residuals: np.ndarray) -> np.ndarray:
+
+    #Winsorize residuals to median ± 5 * IQR.
+
+    if residuals.size == 0:
+        return residuals
+    med = np.median(residuals)
+    width = iqr(residuals)
+    lower = med - 5 * width
+    upper = med + 5 * width
+    return np.clip(residuals, lower, upper)
+
+
+def isotonic_non_crossing(preds: np.ndarray, quantiles: list) -> np.ndarray:
+
+    #Enforce monotonicity of quantile predictions using isotonic regression on each row.
+
+    iso_preds = np.empty_like(preds)
+    ir = IsotonicRegression(increasing=True, out_of_bounds='clip')
+    for i in range(preds.shape[0]):
+        iso_preds[i, :] = ir.fit_transform(quantiles, preds[i, :])
+    return iso_preds
+
+
+#Rolling parameters
+
+train_len = 120
+cal_len = 24
+test_len = 6
+step = 6
+
+quantiles = [0.10, 0.25, 0.50, 0.75, 0.90]
+
+#Placeholders for predictions and pinball losses
+
+pred_records = []
+pinball_records = []
+
+#Loop over each token
+
+for token in df['token'].unique():
+    df_tok = df[df['token'] == token].reset_index(drop=True)
+    n = len(df_tok)
+
+    #Compute indices for rolling windows
+
+    start = 0
+    fold_idx = 0
+    while start + train_len + cal_len + test_len <= n:
+        train_slice = slice(start, start + train_len)
+        cal_slice = slice(start + train_len, start + train_len + cal_len)
+        test_slice = slice(start + train_len + cal_len, start + train_len + cal_len + test_len)
+
+        df_train = df_tok.iloc[train_slice]
+        df_cal = df_tok.iloc[cal_slice]
+        df_test = df_tok.iloc[test_slice]
+
+        X_train = df_train[feature_cols]
+        y_train = df_train[target_col]
+        X_cal = df_cal[feature_cols]
+        y_cal = df_cal[target_col]
+        X_test = df_test[feature_cols]
+        y_test = df_test[target_col]
+
+        #Compute sample weights with exponential decay
+
+        weights = compute_decay_weights(len(y_train), half_life=60)
+
+        #Fit preprocessing and QRF model
+
+        model = RandomForestQuantileRegressor(
+            n_estimators=1000,
+            min_samples_leaf=10,
+            max_features='sqrt',
+            bootstrap=True,
+            random_state=42,
+            n_jobs=-1
+        )
+
+        #Create a pipeline so that preprocessor is fitted jointly with the model
+
+        pipe = Pipeline([
+            ('preprocess', preprocessor),
+            ('qrf', model)
+        ])
+
+        #Fit
+
+        pipe.fit(X_train, y_train, qrf__sample_weight=weights)
+
+        #Predict (pass quantiles at predict-time)
+
+        preds_cal  = np.array(pipe.predict(X_cal,  quantiles=quantiles))
+        preds_test = np.array(pipe.predict(X_test, quantiles=quantiles))
+
+
+        #Compute residuals on calibration: residual = y_true - y_pred
+
+        residuals = y_cal.values.reshape(-1, 1) - preds_cal
+
+        #Mask heavy missingness rows for calibration offset estimation
+        if len(imputation_mask_cols) > 0:
+            imputed_counts = df_cal[imputation_mask_cols].sum(axis=1)
+            valid_mask = imputed_counts / len(imputation_mask_cols) < 0.3
+        else:
+            valid_mask = np.ones(len(df_cal), dtype=bool)
+
+        #Determine volatility regime for each calibration row
+        regime_cal = df_cal['vol_regime'].astype(str).values
+
+        #Compute median residual for bias correction (only on valid rows)
+        median_bias = np.median(residuals[valid_mask, quantiles.index(0.50)])
+
+        #Initialize offset array for each quantile
+        offsets = np.zeros(len(quantiles))
+
+        #For each quantile compute regime‑specific offset
+        for qi, tau in enumerate(quantiles):
+            res_q = residuals[valid_mask, qi]
+            res_q = winsorize_residuals(res_q)
+
+            if tau in [0.10, 0.90] and 'volatile' in set(regime_cal):
+                #mask for quiet vs volatile
+                quiet_mask = (regime_cal == 'quiet') & valid_mask
+                vol_mask = (regime_cal == 'volatile') & valid_mask
+                if tau < 0.50:
+                    #lower quantile uses (1 - tau) quantile of residuals
+                    if res_q[quiet_mask].size > 0:
+                        quiet_offset = np.quantile(res_q[quiet_mask], 1 - tau)
+                    else:
+                        quiet_offset = np.quantile(res_q, 1 - tau)
+                    if res_q[vol_mask].size > 0:
+                        vol_offset = np.quantile(res_q[vol_mask], 1 - tau)
+                    else:
+                        vol_offset = quiet_offset
+                    count_quiet = quiet_mask.sum()
+                    count_vol = vol_mask.sum()
+                    if count_quiet + count_vol > 0:
+                        offsets[qi] = (count_quiet * quiet_offset + count_vol * vol_offset) / (count_quiet + count_vol)
+                    else:
+                        offsets[qi] = np.quantile(res_q, 1 - tau)
+                else:
+                    #upper quantile uses tau quantile of residuals
+                    if res_q[quiet_mask].size > 0:
+                        quiet_offset = np.quantile(res_q[quiet_mask], tau)
+                    else:
+                        quiet_offset = np.quantile(res_q, tau)
+                    if res_q[vol_mask].size > 0:
+                        vol_offset = np.quantile(res_q[vol_mask], tau)
+                    else:
+                        vol_offset = quiet_offset
+                    count_quiet = quiet_mask.sum()
+                    count_vol = vol_mask.sum()
+                    if count_quiet + count_vol > 0:
+                        offsets[qi] = (count_quiet * quiet_offset + count_vol * vol_offset) / (count_quiet + count_vol)
+                    else:
+                        offsets[qi] = np.quantile(res_q, tau)
+            else:
+                #Non‑regime specific offset
+                if tau < 0.50:
+                    offsets[qi] = np.quantile(res_q, 1 - tau)
+                elif tau > 0.50:
+                    offsets[qi] = np.quantile(res_q, tau)
+                else:
+                    offsets[qi] = 0.0
+
+        #Adjust test predictions using offsets and median bias
+        adjusted_test = preds_test + offsets  # broadcast offsets across rows
+        #Median bias correction
+        adjusted_test[:, quantiles.index(0.50)] += median_bias
+
+        #Enforce non‑crossing
+        adjusted_test = isotonic_non_crossing(adjusted_test, quantiles)
+
+        #Evaluate pinball loss for each quantile on the test set
+        for qi, tau in enumerate(quantiles):
+            loss = mean_pinball_loss(y_test, adjusted_test[:, qi], alpha=tau)
+            pinball_records.append({
+                'token': token,
+                'fold': fold_idx,
+                'tau': tau,
+                'pinball_loss': loss
+            })
+
+        #Save row‑level predictions
+        for i, row in df_test.iterrows():
+            record = {
+                'token': token,
+                'timestamp': row['timestamp'],
+                'fold': fold_idx,
+                'y_true': row[target_col]
+            }
+            for qi, tau in enumerate(quantiles):
+                record[f'q{int(tau*100)}'] = adjusted_test[i - test_slice.start, qi]
+            pred_records.append(record)
+
+        #Move window forward
+        start += step
+        fold_idx += 1
+
+#Convert records to dataframes
+pred_df = pd.DataFrame(pred_records)
+pinball_df = pd.DataFrame(pinball_records)
+
+#Aggregate pinball loss across folds
+avg_pinball = pinball_df.groupby('tau')['pinball_loss'].mean().reset_index()
+avg_pinball.rename(columns={'pinball_loss': 'avg_pinball_loss'}, inplace=True)
+
+#Save outputs to CSV
+pred_df.to_csv('qrf_v2_preds.csv', index=False)
+pinball_df.to_csv('qrf_v2_pinball.csv', index=False)
+avg_pinball.to_csv('qrf_v2_avg_pinball.csv', index=False)
+
+avg_pinball
+````
+
+**V3** 
+
+````
+#Imports
+import pandas as pd
+import numpy as np
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from quantile_forest import RandomForestQuantileRegressor
+from sklearn.isotonic import IsotonicRegression
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import mean_pinball_loss
+from scipy.stats import iqr
+import optuna
+import warnings
+warnings.filterwarnings('ignore')
+
+
+def compute_decay_weights(n: int, half_life: float = 60.0) -> np.ndarray:
+    decay_constant = half_life / np.log(2)
+    indices = np.arange(n)[::-1]
+    weights = np.exp(-indices / decay_constant)
+    return weights / weights.sum()
+
+
+def winsorize_residuals(residuals: np.ndarray) -> np.ndarray:
+    if residuals.size == 0:
+        return residuals
+    med = np.median(residuals)
+    width = iqr(residuals)
+    lower = med - 5 * width
+    upper = med + 5 * width
+    return np.clip(residuals, lower, upper)
+
+
+def isotonic_non_crossing(preds: np.ndarray, quantiles: list) -> np.ndarray:
+    iso_preds = np.empty_like(preds)
+    ir = IsotonicRegression(increasing=True, out_of_bounds='clip')
+    for i in range(preds.shape[0]):
+        iso_preds[i, :] = ir.fit_transform(quantiles, preds[i, :])
+    return iso_preds
+
+#helpers: regime labels 
+def resolve_regime_labels(df_fold):
+    """
+    Returns string labels in {'quiet','mid','volatile'} based on df_fold['vol_regime'] if present,
+    otherwise derives regimes from a volatility proxy (no look-ahead).
+    """
+    import numpy as np, pandas as pd
+
+    if "vol_regime" in df_fold.columns:
+        reg = df_fold["vol_regime"]
+        if pd.api.types.is_numeric_dtype(reg):
+            # 5-bin code → 3 regimes: 0–1 quiet, 2 mid, 3–4 volatile
+            out = pd.Series(np.where(reg >= 3, "volatile",
+                              np.where(reg <= 1, "quiet", "mid")),
+                            index=reg.index, dtype="object")
+            out[reg.isna()] = "mid"  # neutralise warm-up
+            return out
+        else:
+            # normalise strings if they already exist
+            m = {"low":"quiet","quiet":"quiet","calm":"quiet",
+                 "mid":"mid","normal":"mid",
+                 "high":"volatile","volatile":"volatile","wild":"volatile"}
+            return reg.astype(str).str.lower().map(m).fillna("mid")
+
+    #Fallback (if vol_regime column absent): use a past-vol proxy available at t
+    proxy_candidates = [c for c in ["gk_vol_36h","parkinson_vol_36h","vol_std_7bar","downside_vol_3bar"] if c in df_fold.columns]
+    if proxy_candidates:
+        v = df_fold[proxy_candidates[0]]
+        q1, q2 = v.quantile([0.33, 0.66])
+        out = pd.Series(np.where(v >= q2, "volatile", np.where(v <= q1, "quiet", "mid")),
+                        index=v.index, dtype="object")
+        out[v.isna()] = "mid"
+        return out
+
+    #Last resort: everything mid
+    return pd.Series(["mid"] * len(df_fold), index=df_fold.index, dtype="object")
+
+
+#Rolling settings
+train_len = 120
+cal_len = 24
+test_len = 6
+step = 6
+
+quantiles = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
+
+tokens_to_use = df['token'].unique()
+
+
+def objective(trial: optuna.Trial) -> float:
+    #Hyperparameters to tune
+    n_estimators = trial.suggest_int('n_estimators', 600, 2000)
+    max_features_choice = trial.suggest_categorical('max_features_choice', ['sqrt', 'log2', 'fraction'])
+    if max_features_choice == 'fraction':
+        max_features = trial.suggest_float('max_features', 0.3, 1.0)
+    else:
+        max_features = max_features_choice
+    min_samples_leaf = trial.suggest_int('min_samples_leaf', 5, 60)
+    max_depth = trial.suggest_categorical('max_depth', [None] + list(range(6, 29, 2)))
+
+    total_loss = []
+
+    for token in tokens_to_use:
+        df_tok = df[df['token'] == token].reset_index(drop=True)
+        n = len(df_tok)
+        start = 0
+        fold_count = 0
+        while start + train_len + cal_len + test_len <= n:
+            if fold_count >= 10:
+                break
+            train_slice = slice(start, start + train_len)
+            cal_slice = slice(start + train_len, start + train_len + cal_len)
+            test_slice = slice(start + train_len + cal_len, start + train_len + cal_len + test_len)
+
+            df_train = df_tok.iloc[train_slice]
+            df_cal = df_tok.iloc[cal_slice]
+            df_test = df_tok.iloc[test_slice]
+
+            X_train = df_train[feature_cols]
+            y_train = df_train[target_col]
+            X_cal = df_cal[feature_cols]
+            y_cal = df_cal[target_col]
+            X_test = df_test[feature_cols]
+            y_test = df_test[target_col]
+
+            weights = compute_decay_weights(len(y_train), half_life=60)
+
+            model = RandomForestQuantileRegressor(
+                n_estimators=n_estimators,
+                min_samples_leaf=min_samples_leaf,
+                max_features=max_features,
+                max_depth=max_depth,
+                bootstrap=True,
+                random_state=42,
+                n_jobs=-1
+            )
+
+            pipe = Pipeline([
+                ('preprocess', preprocessor),
+                ('qrf', model)
+            ])
+
+            #Fit pipeline: only pass sample weights to qrf
+            pipe.fit(X_train, y_train, qrf__sample_weight=weights)
+
+            #Predict quantiles
+            preds_cal = np.array(pipe.predict(X_cal, quantiles=quantiles))
+            preds_test = np.array(pipe.predict(X_test, quantiles=quantiles))
+
+            residuals = y_cal.values.reshape(-1, 1) - preds_cal
+
+            if len(imputation_mask_cols) > 0:
+                imputed_counts = df_cal[imputation_mask_cols].sum(axis=1)
+                valid_mask = imputed_counts / len(imputation_mask_cols) < 0.3
+            else:
+                valid_mask = np.ones(len(df_cal), dtype=bool)
+
+            regime_cal = df_cal['vol_regime'].astype(str).values
+            offsets = np.zeros(len(quantiles))
+            median_bias = np.median(residuals[valid_mask, quantiles.index(0.50)])
+
+            for qi, tau in enumerate(quantiles):
+                res_q = winsorize_residuals(residuals[valid_mask, qi])
+                if tau in [0.05, 0.10, 0.90, 0.95]:
+                    quiet_mask = (regime_cal == 'quiet') & valid_mask
+                    vol_mask = (regime_cal == 'volatile') & valid_mask
+                    if tau < 0.50:
+                        if res_q[quiet_mask].size > 0:
+                            quiet_offset = np.quantile(res_q[quiet_mask], 1 - tau)
+                        else:
+                            quiet_offset = np.quantile(res_q, 1 - tau)
+                        if res_q[vol_mask].size > 0:
+                            vol_offset = np.quantile(res_q[vol_mask], 1 - tau)
+                        else:
+                            vol_offset = quiet_offset
+                        count_quiet = quiet_mask.sum()
+                        count_vol = vol_mask.sum()
+                        offsets[qi] = (count_quiet * quiet_offset + count_vol * vol_offset) / (count_quiet + count_vol + 1e-8)
+                    else:
+                        if res_q[quiet_mask].size > 0:
+                            quiet_offset = np.quantile(res_q[quiet_mask], tau)
+                        else:
+                            quiet_offset = np.quantile(res_q, tau)
+                        if res_q[vol_mask].size > 0:
+                            vol_offset = np.quantile(res_q[vol_mask], tau)
+                        else:
+                            vol_offset = quiet_offset
+                        count_quiet = quiet_mask.sum()
+                        count_vol = vol_mask.sum()
+                        offsets[qi] = (count_quiet * quiet_offset + count_vol * vol_offset) / (count_quiet + count_vol + 1e-8)
+                else:
+                    if tau < 0.50:
+                        offsets[qi] = np.quantile(res_q, 1 - tau)
+                    elif tau > 0.50:
+                        offsets[qi] = np.quantile(res_q, tau)
+                    else:
+                        offsets[qi] = 0.0
+
+            adjusted_test = preds_test + offsets
+            adjusted_test[:, quantiles.index(0.50)] += median_bias
+            adjusted_test = isotonic_non_crossing(adjusted_test, quantiles)
+
+            losses = [mean_pinball_loss(y_test, adjusted_test[:, qi], alpha=tau) for qi, tau in enumerate(quantiles)]
+            total_loss.append(np.mean(losses))
+
+            start += step
+            fold_count += 1
+
+    return float(np.mean(total_loss))
+
+
+study = optuna.create_study(direction='minimize')
+study.optimize(objective, n_trials=30)
+
+print('Best parameters:', study.best_params)
+print('Best average pinball loss:', study.best_value)
+
+best_params = study.best_params
+import json
+with open('qrf_tuned_params.json', 'w') as f:
+    json.dump(best_params, f)
+
+best_params
+
+
+
+import json
+try:
+    with open('qrf_tuned_params.json') as f:
+        best_params = json.load(f)
+except FileNotFoundError:
+    best_params = {'n_estimators': 1000, 'max_features': 'sqrt', 'min_samples_leaf': 10, 'max_depth': None}
+
+quantiles = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
+pred_records = []
+pinball_records = []
+
+for token in df['token'].unique():
+    df_tok = df[df['token'] == token].reset_index(drop=True)
+    n = len(df_tok)
+    start = 0
+    fold_idx = 0
+    while start + train_len + cal_len + test_len <= n:
+        train_slice = slice(start, start + train_len)
+        cal_slice = slice(start + train_len, start + train_len + cal_len)
+        test_slice = slice(start + train_len + cal_len, start + train_len + cal_len + test_len)
+
+        df_train = df_tok.iloc[train_slice]
+        df_cal = df_tok.iloc[cal_slice]
+        df_test = df_tok.iloc[test_slice]
+
+        X_train = df_train[feature_cols]
+        y_train = df_train[target_col]
+        X_cal = df_cal[feature_cols]
+        y_cal = df_cal[target_col]
+        X_test = df_test[feature_cols]
+        y_test = df_test[target_col]
+
+        weights = compute_decay_weights(len(y_train), half_life=60)
+
+        model = RandomForestQuantileRegressor(
+            n_estimators=1052,
+            min_samples_leaf=6,
+            max_features=0.9772503234610418,
+            max_depth=26,
+            bootstrap=True,
+            random_state=42,
+            n_jobs=-1
+        )
+
+        pipe = Pipeline([
+            ('preprocess', preprocessor),
+            ('qrf', model)
+        ])
+
+        pipe.fit(X_train, y_train, qrf__sample_weight=weights)
+
+
+        preds_cal = np.array(pipe.predict(X_cal, quantiles=quantiles))
+        preds_test = np.array(pipe.predict(X_test, quantiles=quantiles))
+
+        residuals = y_cal.values.reshape(-1, 1) - preds_cal
+
+        if len(imputation_mask_cols) > 0:
+            imputed_counts = df_cal[imputation_mask_cols].sum(axis=1)
+            valid_mask = imputed_counts / len(imputation_mask_cols) < 0.3
+        else:
+            valid_mask = np.ones(len(df_cal), dtype=bool)
+
+        #compute regime-aware δτ on calibration residuals 
+        regime_labels = resolve_regime_labels(df_cal)  # <- uses your numeric vol_regime safely
+        offsets = np.zeros(len(quantiles))
+        median_bias = np.median(residuals[valid_mask, quantiles.index(0.50)])
+
+        for qi, tau in enumerate(quantiles):
+            res_all = winsorize_residuals(residuals[valid_mask, qi])
+
+            if tau in [0.05, 0.10, 0.90, 0.95]:
+                quiet_mask = (regime_labels == "quiet") & valid_mask
+                vol_mask   = (regime_labels == "volatile") & valid_mask
+
+                def qtau(arr, t=tau, fallback=res_all):
+                    return np.quantile(winsorize_residuals(arr), t) if arr.size > 0 else np.quantile(fallback, t)
+
+                quiet_off = qtau(residuals[quiet_mask, qi])
+                vol_off   = qtau(residuals[vol_mask,   qi])
+                wq, wv = quiet_mask.sum(), vol_mask.sum()
+
+        #if one side is missing, this gracefully reduces to the other / global
+                denom = wq + wv
+                if denom == 0:
+                    offsets[qi] = np.quantile(res_all, tau)
+                else:
+                    offsets[qi] = (wq * quiet_off + wv * vol_off) / denom
+            else:
+                offsets[qi] = np.quantile(res_all, tau)
+
+        adjusted_test = preds_test + offsets
+        adjusted_test[:, quantiles.index(0.50)] += median_bias
+        adjusted_test = isotonic_non_crossing(adjusted_test, quantiles)
+
+
+        for qi, tau in enumerate(quantiles):
+            loss = mean_pinball_loss(y_test, adjusted_test[:, qi], alpha=tau)
+            pinball_records.append({
+                'token': token,
+                'fold': fold_idx,
+                'tau': tau,
+                'pinball_loss': loss
+            })
+
+        for i, row in df_test.iterrows():
+            rec = {
+                'token': token,
+                'timestamp': row['timestamp'],
+                'fold': fold_idx,
+                'y_true': row[target_col]
+            }
+            for qi, tau in enumerate(quantiles):
+                rec[f'q{int(tau*100)}'] = adjusted_test[i - test_slice.start, qi]
+            pred_records.append(rec)
+
+        start += step
+        fold_idx += 1
+
+pred_df = pd.DataFrame(pred_records)
+pinball_df = pd.DataFrame(pinball_records)
+avg_pinball = pinball_df.groupby('tau')['pinball_loss'].mean().reset_index().rename(columns={'pinball_loss':'avg_pinball_loss'})
+
+pred_df.to_csv('qrf_v2_tuned_preds.csv', index=False)
+pinball_df.to_csv('qrf_v2_tuned_pinball.csv', index=False)
+avg_pinball.to_csv('qrf_v3_tuned_avg_pinball.csv', index=False)
+
+avg_pinball
+````
+
+**Feature Importance analysis using v3**
+
+````
+##Feature importance using the final tuned model (with decay weights)
+
+#Prepare full dataset
+X_full = df[feature_cols]
+y_full = df[target_col]
+weights_full = compute_decay_weights(len(y_full), half_life=60)
+
+#Build the tuned model
+final_model = RandomForestQuantileRegressor(
+    n_estimators=int(best_params.get('n_estimators', 1000)),
+    min_samples_leaf=int(best_params.get('min_samples_leaf', 10)),
+    max_features=best_params.get('max_features', 'sqrt'),
+    max_depth=best_params.get('max_depth', None),
+    bootstrap=True,
+    random_state=42,
+    n_jobs=-1
+)
+
+final_pipe = Pipeline([
+    ('preprocess', preprocessor),
+    ('qrf', final_model)
+])
+
+#Fit the model, attempting to include sample weights.
+#If the underlying estimator does not support sample_weight, fit without it.
+try:
+    final_pipe.fit(X_train, y_train, qrf__sample_weight=weights)
+except TypeError:
+    final_pipe.fit(X_full, y_full)
+
+#Access the fitted forest
+forest = final_pipe.named_steps['qrf']
+
+#Get one‑hot and numeric feature names
+cat_feature_names = final_pipe.named_steps['preprocess'].named_transformers_['cat'].get_feature_names_out(categorical_cols)
+num_feature_names = numeric_cols
+all_feature_names = list(cat_feature_names) + num_feature_names
+
+#Retrieve MDI importances from the forest
+importances = forest.feature_importances_
+
+#Aggregate importances back to original feature names
+from collections import defaultdict
+agg_importance = defaultdict(float)
+for name, imp in zip(all_feature_names, importances):
+    original = name.split('_')[0] if name in cat_feature_names else name
+    agg_importance[original] += imp
+
+importances_df = (
+    pd.DataFrame({'feature': agg_importance.keys(), 'importance': agg_importance.values()})
+      .sort_values('importance', ascending=False)
+)
+
+#Save and display
+importances_df.to_csv('qrf_v2_tuned_feature_importances.csv', index=False)
+importances_df
+
+````
+
+
+**QRF Final Model**
+
+````
+##Feature importance using the final tuned model (with decay weights)
+
+#Prepare full dataset
+X_full = df[feature_cols]
+y_full = df[target_col]
+weights_full = compute_decay_weights(len(y_full), half_life=60)
+
+#Build the tuned model
+final_model = RandomForestQuantileRegressor(
+    n_estimators=int(best_params.get('n_estimators', 1000)),
+    min_samples_leaf=int(best_params.get('min_samples_leaf', 10)),
+    max_features=best_params.get('max_features', 'sqrt'),
+    max_depth=best_params.get('max_depth', None),
+    bootstrap=True,
+    random_state=42,
+    n_jobs=-1
+)
+
+final_pipe = Pipeline([
+    ('preprocess', preprocessor),
+    ('qrf', final_model)
+])
+
+#Fit the model, attempting to include sample weights.
+#If the underlying estimator does not support sample_weight, fit without it.
+try:
+    final_pipe.fit(X_train, y_train, qrf__sample_weight=weights)
+except TypeError:
+    final_pipe.fit(X_full, y_full)
+
+#Access the fitted forest
+forest = final_pipe.named_steps['qrf']
+
+#Get one‑hot and numeric feature names
+cat_feature_names = final_pipe.named_steps['preprocess'].named_transformers_['cat'].get_feature_names_out(categorical_cols)
+num_feature_names = numeric_cols
+all_feature_names = list(cat_feature_names) + num_feature_names
+
+#Retrieve MDI importances from the forest
+importances = forest.feature_importances_
+
+#Aggregate importances back to original feature names
+from collections import defaultdict
+agg_importance = defaultdict(float)
+for name, imp in zip(all_feature_names, importances):
+    original = name.split('_')[0] if name in cat_feature_names else name
+    agg_importance[original] += imp
+
+importances_df = (
+    pd.DataFrame({'feature': agg_importance.keys(), 'importance': agg_importance.values()})
+      .sort_values('importance', ascending=False)
+)
+
+#Save and display
+importances_df.to_csv('qrf_v2_tuned_feature_importances.csv', index=False)
+importances_df
+
+
+import optuna
+
+def objective(trial: optuna.Trial) -> float:
+    n_estimators = trial.suggest_int('n_estimators', 600, 2000)
+    max_features_choice = trial.suggest_categorical('max_features_choice', ['sqrt', 'log2', 'fraction'])
+    max_features = trial.suggest_float('max_features', 0.3, 1.0) if max_features_choice == 'fraction' else max_features_choice
+    min_samples_leaf = trial.suggest_int('min_samples_leaf', 5, 60)
+    max_depth = trial.suggest_categorical('max_depth', [None] + list(range(6, 29, 2)))
+
+    total_loss = []
+    params = dict(n_estimators=n_estimators, max_features=max_features,
+                  min_samples_leaf=min_samples_leaf, max_depth=max_depth)
+
+    for token in tokens_to_use:
+        df_tok = df[df['token'] == token].reset_index(drop=True)
+        n, start, fold_count = len(df_tok), 0, 0
+
+        while start + train_len + cal_len + test_len <= n and fold_count < 10:
+            tr = slice(start, start + train_len)
+            ca = slice(start + train_len, start + train_len + cal_len)
+            te = slice(start + train_len + cal_len, start + train_len + cal_len + test_len)
+
+            df_train, df_cal, df_test = df_tok.iloc[tr], df_tok.iloc[ca], df_tok.iloc[te]
+            X_train, y_train = df_train[feature_cols], df_train[target_col]
+            X_cal,   y_cal   = df_cal[feature_cols],   df_cal[target_col]
+            X_test,  y_test  = df_test[feature_cols],  df_test[target_col]
+
+            pipe = Pipeline([('preprocess', preprocessor),
+                             ('qrf', RandomForestQuantileRegressor(
+                                  n_estimators=params["n_estimators"],
+                                  min_samples_leaf=params["min_samples_leaf"],
+                                  max_features=params["max_features"],
+                                  max_depth=params["max_depth"],
+                                  bootstrap=True, random_state=42, n_jobs=-1))])
+
+            pipe.fit(X_train, y_train, qrf__sample_weight=compute_decay_weights(len(y_train), 60))
+
+            preds_cal  = np.array(pipe.predict(X_cal,  quantiles=quantiles))
+            preds_test = np.array(pipe.predict(X_test, quantiles=quantiles))
+            residuals  = y_cal.values.reshape(-1, 1) - preds_cal
+
+            cal_mask = make_cal_mask(df_cal, y_cal, imputation_mask_cols)
+
+            # offsets
+            regime_labels = resolve_regime_labels(df_cal)
+            offsets = np.zeros(len(quantiles), dtype=float)
+            for qi, tau in enumerate(quantiles):
+                res_all = winsorize_residuals_nan(residuals[cal_mask, qi])
+                if tau in (0.05, 0.10, 0.90, 0.95):
+                    quiet_mask = ((regime_labels == "quiet").to_numpy()) & cal_mask
+                    vol_mask   = ((regime_labels == "volatile").to_numpy()) & cal_mask
+                    quiet_res = winsorize_residuals_nan(residuals[quiet_mask, qi])
+                    vol_res   = winsorize_residuals_nan(residuals[vol_mask,   qi])
+                    wq, wv = quiet_res.size, vol_res.size
+                    if (wq + wv) == 0:
+                        offsets[qi] = nanquant(res_all, tau, fallback=0.0)
+                    else:
+                        q_off = nanquant(quiet_res, tau, fallback=nanquant(res_all, tau))
+                        v_off = nanquant(vol_res,   tau, fallback=nanquant(res_all, tau))
+                        offsets[qi] = (wq * q_off + wv * v_off) / (wq + wv)
+                else:
+                    offsets[qi] = nanquant(res_all, tau, fallback=0.0)
+
+            adj_cal  = isotonic_non_crossing(preds_cal  + offsets, quantiles)
+            adj_test = isotonic_non_crossing(preds_test + offsets, quantiles)
+
+            delta80 = split_conformal_delta_two_sided(y_cal.values, adj_cal[:, i10], adj_cal[:, i90], coverage=0.80)
+            delta90 = split_conformal_delta_two_sided(y_cal.values, adj_cal[:, i05], adj_cal[:, i95], coverage=0.90)
+
+            adj_test[:, i10] -= delta80; adj_test[:, i90] += delta80
+            adj_test[:, i05] -= delta90; adj_test[:, i95] += delta90
+
+            adj_test = isotonic_non_crossing(adj_test, quantiles)
+
+            losses = [mean_pinball_loss(y_test, adj_test[:, qi], alpha=tau) for qi, tau in enumerate(quantiles)]
+            total_loss.append(float(np.mean(losses)))
+
+            start += step; fold_count += 1
+
+    return float(np.mean(total_loss))
+
+#Suggested sampler/pruner to speed up
+sampler = optuna.samplers.TPESampler(seed=42, n_startup_trials=8)
+pruner  = optuna.pruners.MedianPruner(n_warmup_steps=6)
+study = optuna.create_study(direction='minimize', sampler=sampler, pruner=pruner)
+study.optimize(objective, n_trials=40)
+
+print('Best parameters:', study.best_params)
+print('Best average pinball loss:', study.best_value)
+
+with open('qrf_tuned_params.json','w') as f:
+    json.dump(study.best_params, f)
+
+
+#=== Load tuned params or fallback =============================================
+try:
+    with open('qrf_tuned_params.json') as f:
+        best_params = json.load(f)
+except FileNotFoundError:
+    best_params = {'n_estimators': 1000, 'max_features': 'sqrt', 'min_samples_leaf': 10, 'max_depth': None}
+
+def build_qrf(params):
+    return RandomForestQuantileRegressor(
+        n_estimators=params.get("n_estimators", 1000),
+        min_samples_leaf=params.get("min_samples_leaf", 10),
+        max_features=params.get("max_features", "sqrt"),
+        max_depth=params.get("max_depth", None),
+        bootstrap=True,
+        random_state=42,
+        n_jobs=-1
+    )
+
+pred_records, pinball_records = [], []
+
+for token in tokens_to_use:
+    df_tok = df[df['token'] == token].reset_index(drop=True)
+    n, start, fold_idx = len(df_tok), 0, 0
+
+    while start + train_len + cal_len + test_len <= n:
+        tr = slice(start, start + train_len)
+        ca = slice(start + train_len, start + train_len + cal_len)
+        te = slice(start + train_len + cal_len, start + train_len + cal_len + test_len)
+
+        df_train, df_cal, df_test = df_tok.iloc[tr], df_tok.iloc[ca], df_tok.iloc[te]
+        X_train, y_train = df_train[feature_cols], df_train[target_col]
+        X_cal,   y_cal   = df_cal[feature_cols],   df_cal[target_col]
+        X_test,  y_test  = df_test[feature_cols],  df_test[target_col]
+
+        pipe = Pipeline([
+            ('preprocess', preprocessor),
+            ('qrf', build_qrf(best_params))
+        ])
+
+        pipe.fit(X_train, y_train, qrf__sample_weight=compute_decay_weights(len(y_train), 60))
+
+        preds_cal  = np.array(pipe.predict(X_cal,  quantiles=quantiles))
+        preds_test = np.array(pipe.predict(X_test, quantiles=quantiles))
+        residuals  = y_cal.values.reshape(-1, 1) - preds_cal
+
+        #---------- valid calibration rows ----------
+        cal_mask = make_cal_mask(df_cal, y_cal, imputation_mask_cols)
+
+        #---------- regime-aware residual quantile offsets (correct δτ=Qτ) ----------
+        regime_labels = resolve_regime_labels(df_cal)  # "quiet"|"mid"|"volatile"
+        offsets = np.zeros(len(quantiles), dtype=float)
+
+        for qi, tau in enumerate(quantiles):
+            res_all = winsorize_residuals_nan(residuals[cal_mask, qi])
+            if tau in (0.05, 0.10, 0.90, 0.95):
+                quiet_mask = ((regime_labels == "quiet").to_numpy()) & cal_mask
+                vol_mask   = ((regime_labels == "volatile").to_numpy()) & cal_mask
+
+                quiet_res = winsorize_residuals_nan(residuals[quiet_mask, qi])
+                vol_res   = winsorize_residuals_nan(residuals[vol_mask,   qi])
+
+                wq, wv = quiet_res.size, vol_res.size
+                if (wq + wv) == 0:
+                    offsets[qi] = nanquant(res_all, tau, fallback=0.0)
+                else:
+                    q_off = nanquant(quiet_res, tau, fallback=nanquant(res_all, tau))
+                    v_off = nanquant(vol_res,   tau, fallback=nanquant(res_all, tau))
+                    offsets[qi] = (wq * q_off + wv * v_off) / (wq + wv)
+            else:
+                offsets[qi] = nanquant(res_all, tau, fallback=0.0)
+
+        #apply offsets to CAL/TEST, then enforce monotonicity
+        adj_cal  = isotonic_non_crossing(preds_cal  + offsets, quantiles)
+        adj_test = isotonic_non_crossing(preds_test + offsets, quantiles)
+
+        #---------- split-conformal widening for two-sided bands ----------
+        delta80 = split_conformal_delta_two_sided(y_cal.values, adj_cal[:, i10], adj_cal[:, i90], coverage=0.80)
+        delta90 = split_conformal_delta_two_sided(y_cal.values, adj_cal[:, i05], adj_cal[:, i95], coverage=0.90)
+
+        adj_test[:, i10] -= delta80;  adj_test[:, i90] += delta80
+        adj_test[:, i05] -= delta90;  adj_test[:, i95] += delta90
+
+        #final monotonic guard
+        adj_test = isotonic_non_crossing(adj_test, quantiles)
+
+        #---------- record metrics & predictions ----------
+        for qi, tau in enumerate(quantiles):
+            loss = mean_pinball_loss(y_test, adj_test[:, qi], alpha=tau)
+            pinball_records.append({"token": token, "fold": fold_idx, "tau": tau, "pinball_loss": loss})
+
+        for i, row in df_test.iterrows():
+            rec = {"token": token, "timestamp": row["timestamp"], "fold": fold_idx, "y_true": row[target_col]}
+            for qi, tau in enumerate(quantiles):
+                rec[f"q{int(tau*100)}"] = adj_test[i - te.start, qi]
+            pred_records.append(rec)
+
+        start   += step
+        fold_idx += 1
+
+#=== Save outputs 
+pred_df    = pd.DataFrame(pred_records)
+pinball_df = pd.DataFrame(pinball_records)
+avg_pinball = (pinball_df.groupby('tau')['pinball_loss']
+               .mean().reset_index()
+               .rename(columns={'pinball_loss':'avg_pinball_loss'}))
+
+pred_df.to_csv('qrf_v2_tuned_preds.csv', index=False)
+pinball_df.to_csv('qrf_v2_tuned_pinball.csv', index=False)
+avg_pinball.to_csv('qrf_v2_tuned_avg_pinball.csv', index=False)
+print("Saved: qrf_v2_tuned_preds.csv, qrf_v2_tuned_pinball.csv, qrf_v4_tuned_avg_pinball.csv")
+
+````
+
+**QRF Robustness Testing Model**
+
+````
+#=== Robustness harness prerequisites =
+import json, math, numpy as np, pandas as pd
+from sklearn.pipeline import Pipeline
+from quantile_forest import RandomForestQuantileRegressor
+from sklearn.isotonic import IsotonicRegression
+from sklearn.metrics import mean_pinball_loss
+from scipy.stats import iqr
+
+#data prerequisites (asserts so we fail fast if missing) 
+assert 'df' in globals(), "df not found"
+assert 'feature_cols' in globals() and 'target_col' in globals(), "feature_cols/target_col missing"
+
+#If you didn’t define a preprocessor earlier, use passthrough.
+try:
+    preprocessor
+except NameError:
+    preprocessor = 'passthrough'
+
+#If imputation mask list not defined, use empty list
+imputation_mask_cols = imputation_mask_cols if 'imputation_mask_cols' in globals() else []
+
+#--- Tuned params (load if available) 
+try:
+    with open('qrf_tuned_params.json') as f:
+        best_params = json.load(f)
+except FileNotFoundError:
+    best_params = {'n_estimators': 1000, 'min_samples_leaf': 10,
+                   'max_features': 'sqrt', 'max_depth': None}
+for k, v in {'n_estimators':1000, 'min_samples_leaf':10,
+             'max_features':'sqrt', 'max_depth':None}.items():
+    best_params.setdefault(k, v)
+print("Using QRF params:", best_params)
+
+#--- rolling config 
+train_len, cal_len, test_len, step = 120, 24, 6, 6
+TAUS = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
+QI = {t:i for i, t in enumerate(TAUS)}
+i05, i10, i25, i50, i75, i90, i95 = [QI[t] for t in TAUS]
+
+#optional caps (set None to disable)
+MAX_FOLDS_PER_TOKEN = None        # e.g., 10 to speed up
+TOKENS_SUBSET = None              # e.g., ["SOL", "BONK"] to subset
+
+#--- helpers (defined only if missing) 
+def _define_if_missing(name, fn):
+    if name not in globals(): globals()[name] = fn
+
+_define_if_missing('compute_decay_weights',
+    lambda n, half_life=60.0: (lambda idx, k: (np.exp(-idx/k) / np.exp(-idx/k).sum()))(
+        np.arange(n)[::-1], half_life / math.log(2.0)
+    )
+)
+
+def _make_cal_mask(df_cal, y_cal, imputation_mask_cols, thresh=0.30):
+    mask = np.isfinite(y_cal.values)
+    if imputation_mask_cols:
+        imp = df_cal[imputation_mask_cols].sum(axis=1).to_numpy()
+        mask &= (imp / len(imputation_mask_cols)) < thresh
+    return mask
+_define_if_missing('make_cal_mask', _make_cal_mask)
+
+def _winsorize_residuals_nan(arr):
+    arr = np.asarray(arr, dtype=float)
+    arr = arr[np.isfinite(arr)]
+    if arr.size == 0: return arr
+    width = iqr(arr) if np.isfinite(iqr(arr)) else np.nanstd(arr)
+    width = width if (width and width > 0) else np.nanstd(arr)
+    med = np.nanmedian(arr)
+    lo, hi = med - 5*width, med + 5*width
+    return np.clip(arr, lo, hi)
+_define_if_missing('winsorize_residuals_nan', _winsorize_residuals_nan)
+
+_define_if_missing('nanquant',
+    lambda arr, q, fallback=0.0: float(np.nanquantile(np.asarray(arr, float)[np.isfinite(arr)], q))
+                                 if np.isfinite(np.asarray(arr, float)).any() else float(fallback)
+)
+
+def _isotonic_non_crossing(preds, taus):
+    taus_arr = np.asarray(taus, float)
+    out = np.empty_like(preds, float)
+    col_med = np.nanmedian(preds, axis=0)
+    col_med = np.where(np.isfinite(col_med), col_med, 0.0)
+    ir = IsotonicRegression(increasing=True, out_of_bounds='clip')
+    for r in range(preds.shape[0]):
+        row = preds[r, :].astype(float)
+        finite = np.isfinite(row)
+        if not finite.any():
+            row_filled = col_med.copy()
+        elif finite.sum() < row.size:
+            row_filled = np.interp(taus_arr, taus_arr[finite], row[finite])
+        else:
+            row_filled = row
+        row_filled = np.where(np.isfinite(row_filled), row_filled, col_med)
+        out[r, :] = ir.fit_transform(taus_arr, row_filled)
+    return out
+_define_if_missing('isotonic_non_crossing', _isotonic_non_crossing)
+
+def _split_conformal_delta_two_sided(y, q_lo, q_hi, coverage):
+    y, q_lo, q_hi = map(lambda a: np.asarray(a, float), (y, q_lo, q_hi))
+    mask = np.isfinite(y) & np.isfinite(q_lo) & np.isfinite(q_hi)
+    if mask.sum() == 0: return 0.0
+    s = np.maximum(q_lo[mask] - y[mask], y[mask] - q_hi[mask])
+    n = s.size
+    k = int(np.ceil((n + 1) * coverage)) - 1
+    k = max(0, min(k, n - 1))
+    return float(np.partition(s, k)[k])
+_define_if_missing('split_conformal_delta_two_sided', _split_conformal_delta_two_sided)
+
+def _resolve_regime_labels(df_fold: pd.DataFrame) -> pd.Series:
+    if "vol_regime" in df_fold.columns:
+        reg = df_fold["vol_regime"]
+        if pd.api.types.is_numeric_dtype(reg):
+            out = pd.Series(np.where(reg >= 3, "volatile",
+                              np.where(reg <= 1, "quiet", "mid")),
+                            index=reg.index, dtype="object")
+            out[reg.isna()] = "mid"
+            return out
+        m = {"low":"quiet","quiet":"quiet","calm":"quiet","mid":"mid","normal":"mid",
+             "high":"volatile","volatile":"volatile","wild":"volatile"}
+        return reg.astype(str).str.lower().map(m).fillna("mid")
+    proxy = next((c for c in ["gk_vol_36h","parkinson_vol_36h","vol_std_7bar","downside_vol_3bar"]
+                  if c in df_fold.columns), None)
+    if proxy:
+        v = df_fold[proxy]; q1, q2 = v.quantile([0.33, 0.66])
+        out = pd.Series(np.where(v >= q2, "volatile", np.where(v <= q1, "quiet", "mid")),
+                        index=v.index, dtype="object")
+        out[v.isna()] = "mid"; return out
+    return pd.Series(["mid"] * len(df_fold), index=df_fold.index, dtype="object")
+_define_if_missing('resolve_regime_labels', _resolve_regime_labels)
+
+#--- pipeline builder 
+def build_pipe(params: dict):
+    return Pipeline([
+        ('preprocess', preprocessor),
+        ('qrf', RandomForestQuantileRegressor(
+            n_estimators=params.get('n_estimators', 1000),
+            min_samples_leaf=params.get('min_samples_leaf', 10),
+            max_features=params.get('max_features', 'sqrt'),
+            max_depth=params.get('max_depth', None),
+            bootstrap=True, random_state=42, n_jobs=-1
+        ))
+    ])
+
+#--- offsets computation (global vs regime-aware) 
+def compute_offsets(residuals, cal_mask, taus, regime_labels=None, mode='global'):
+    offs = np.zeros(len(taus), float)
+    for qi, tau in enumerate(taus):
+        res_all = winsorize_residuals_nan(residuals[cal_mask, qi])
+        if mode == 'regime' and regime_labels is not None and tau in (0.05, 0.10, 0.90, 0.95):
+            quiet_mask = ((regime_labels == "quiet").to_numpy()) & cal_mask
+            vol_mask   = ((regime_labels == "volatile").to_numpy()) & cal_mask
+            qres = winsorize_residuals_nan(residuals[quiet_mask, qi])
+            vres = winsorize_residuals_nan(residuals[vol_mask,   qi])
+            wq, wv = qres.size, vres.size
+            if wq + wv == 0:
+                offs[qi] = nanquant(res_all, tau, 0.0)
+            else:
+                q_off = nanquant(qres, tau, nanquant(res_all, tau))
+                v_off = nanquant(vres, tau, nanquant(res_all, tau))
+                offs[qi] = (wq * q_off + wv * v_off) / (wq + wv)
+        else:
+            offs[qi] = nanquant(res_all, tau, 0.0)
+    return offs
+
+#--- pooled stats for 'calibration_scope="pooled"' 
+def collect_pooled_stats(df, params, *, use_decay=True, half_life=60,
+                         offsets_mode='regime', isotonic=True):
+    all_res, all_y_cal, all_q10, all_q90, all_q05, all_q95 = [], [], [], [], [], []
+    for tok, df_tok in df.groupby('token'):
+        df_tok = df_tok.reset_index(drop=True)
+        n, start = len(df_tok), 0
+        while start + train_len + cal_len + test_len <= n:
+            tr = slice(start, start + train_len)
+            ca = slice(start + train_len, start + train_len + cal_len)
+            te = slice(start + train_len + cal_len, start + train_len + cal_len + test_len)
+
+            df_tr, df_ca = df_tok.iloc[tr], df_tok.iloc[ca]
+            X_tr, y_tr = df_tr[feature_cols], df_tr[target_col]
+            X_ca, y_ca = df_ca[feature_cols], df_ca[target_col]
+
+            pipe = build_pipe(params)
+            sw = compute_decay_weights(len(y_tr), half_life) if use_decay else None
+            fit_kwargs = {'qrf__sample_weight': sw} if sw is not None else {}
+            pipe.fit(X_tr, y_tr, **fit_kwargs)
+
+            cal_hat = np.array(pipe.predict(X_ca, quantiles=TAUS))
+            if isotonic:
+                cal_hat = isotonic_non_crossing(cal_hat, TAUS)
+
+            residuals = y_ca.values.reshape(-1,1) - cal_hat
+            cal_mask  = make_cal_mask(df_ca, y_ca, imputation_mask_cols)
+            regs      = resolve_regime_labels(df_ca) if offsets_mode == 'regime' else None
+
+            all_res.append((residuals, cal_mask, regs))
+            all_y_cal.append(y_ca.values)
+            all_q10.append(cal_hat[:, i10]); all_q90.append(cal_hat[:, i90])
+            all_q05.append(cal_hat[:, i05]); all_q95.append(cal_hat[:, i95])
+
+            start += step
+
+    #offsets: pool residuals across folds
+    if offsets_mode == 'regime':
+        #weight by counts across folds
+        R = np.zeros(len(TAUS))
+        W = np.zeros(len(TAUS))
+        #compute regime-aware offset per fold then average weighted by #valid rows
+        offs_list, wts = [], []
+        for residuals, cal_mask, regs in all_res:
+            offs = compute_offsets(residuals, cal_mask, TAUS, regime_labels=regs, mode='regime')
+            offs_list.append(offs); wts.append(int(cal_mask.sum()))
+        offs = np.average(np.vstack(offs_list), axis=0, weights=wts) if offs_list else np.zeros(len(TAUS))
+    else:
+        #global offsets from concatenated residuals
+        if not all_res:
+            offs = np.zeros(len(TAUS))
+        else:
+            res_stack = []
+            for residuals, cal_mask, _ in all_res:
+                res_stack.append(residuals[cal_mask, :])
+            res_stack = np.vstack(res_stack)
+            offs = np.array([nanquant(_winsorize_residuals_nan(res_stack[:, qi]), tau, 0.0)
+                             for qi, tau in enumerate(TAUS)])
+
+    #conformal deltas (pooled)
+    y_all  = np.concatenate(all_y_cal) if all_y_cal else np.array([])
+    q10_all= np.concatenate(all_q10) if all_q10 else np.array([])
+    q90_all= np.concatenate(all_q90) if all_q90 else np.array([])
+    q05_all= np.concatenate(all_q05) if all_q05 else np.array([])
+    q95_all= np.concatenate(all_q95) if all_q95 else np.array([])
+
+    d80 = split_conformal_delta_two_sided(y_all, q10_all, q90_all, 0.80) if y_all.size else 0.0
+    d90 = split_conformal_delta_two_sided(y_all, q05_all, q95_all, 0.90) if y_all.size else 0.0
+    return {'offsets': offs, 'd80': d80, 'd90': d90}
+
+rows = [run_variant(df, best_params, **cfg) for cfg in variants]
+robust = pd.DataFrame(rows)
+robust.to_csv('tbl_robustness_summary.csv', index=False)
+robust
+````
+
+---
+
+## Model Analysis, Testing and Application to Trading
+
+See the full notebooks here: 
+- [Comparison of Models, using Pinball loss, DM test and more.](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/03_QRF_v3_analysis.ipynb){target="_blank" rel="noopener"}
+- [Validation Tests on QRF, addition tests/analysis, Risk aware sizing backtest and Quantile Prediction Figures](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/03_QRF_v4_dev.ipynb){target="_blank" rel="noopener"}
+
+
+- **Computing pinball loss by tau, and coverage of all models**
+
+````
+import pandas as pd
+import numpy as np
+from sklearn.metrics import mean_pinball_loss
+
+#CONFIG 
+qrf_path = 'qrf_v2_tuned_preds.csv'
+lqr_path = 'lqr_pred_paths_full.csv'
+lgb_path = 'lgb_extended_preds.csv'
+
+#Standard quantile set and canonical column names
+TAUS = [0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95]
+QCOLS = {0.05:'q05_pred', 0.10:'q10_pred', 0.25:'q25_pred',
+         0.50:'q50_pred', 0.75:'q75_pred', 0.90:'q90_pred', 0.95:'q95_pred'}
+
+#HELPERS (robust) 
+def find_and_rename_id_cols(df):
+    """Ensure columns: token, timestamp, y_true (if present)."""
+    #token
+    tok_candidates = [c for c in df.columns if c.lower() in ('token','symbol','asset')]
+    if tok_candidates and 'token' not in df.columns:
+        df = df.rename(columns={tok_candidates[0]: 'token'})
+    #timestamp
+    ts_candidates = [c for c in df.columns if c.lower() in ('timestamp','time','date','datetime')]
+    if ts_candidates and 'timestamp' not in df.columns:
+        df = df.rename(columns={ts_candidates[0]: 'timestamp'})
+    #y_true (optional)
+    if 'y_true' not in df.columns:
+        y_candidates = [c for c in df.columns if c.lower() in ('y_true','y','target','ret_72h','return_72h')]
+        if y_candidates:
+            df = df.rename(columns={y_candidates[0]: 'y_true'})
+    return df
+
+def normalize_quantile_cols(df):
+    """
+    Map any common variants to canonical qXX_pred names.
+    Handles: q5, q05, q_05, q05_pred, q5_pred, q50, q50_pred, etc.
+    Idempotent if already standard.
+    """
+    rename = {}
+    for tau, canon in QCOLS.items():
+        two = f"{int(tau*100):02d}"    # '05','10',...
+        candidates = [
+            f"q{two}", f"q{int(tau*100)}", f"q_{two}",
+            f"q{two}_pred", f"q{int(tau*100)}_pred", f"q_{two}_pred"
+        ]
+        # Also accept bare 'q5' (tau=0.05)
+        if tau == 0.05: candidates += ['q5','q5_pred']
+        for c in candidates:
+            if c in df.columns:
+                rename[c] = canon
+                break
+    return df.rename(columns=rename)
+
+def coerce_types(df):
+    if 'timestamp' in df.columns:
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce', utc=True)
+    if 'token' in df.columns:
+        df['token'] = df['token'].astype(str)
+    if 'y_true' in df.columns:
+        df['y_true'] = pd.to_numeric(df['y_true'], errors='coerce')
+    #Quantile preds numeric
+    for col in QCOLS.values():
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df
+
+def attach_y_true_if_missing(pred_df, y_source_df):
+    """If pred_df lacks y_true, merge it from y_source_df on (token,timestamp)."""
+    if 'y_true' in pred_df.columns:
+        return pred_df
+    cols = ['token','timestamp','y_true']
+    if not set(cols[:2]).issubset(y_source_df.columns):
+        raise ValueError("y_source_df must have token and timestamp to attach y_true.")
+    merged = pred_df.merge(y_source_df[cols], on=['token','timestamp'], how='left', validate='many_to_one')
+    return merged
+
+def compute_coverage(df):
+    """Return dict with 80% and 90% coverage, using only rows where bounds & y_true are finite."""
+    out = {}
+    #80%: q10 - q90
+    if {'y_true','q10_pred','q90_pred'}.issubset(df.columns):
+        m = np.isfinite(df['y_true']) & np.isfinite(df['q10_pred']) & np.isfinite(df['q90_pred'])
+        if m.any():
+            out['cov80'] = np.mean((df.loc[m,'y_true'] >= df.loc[m,'q10_pred']) &
+                                   (df.loc[m,'y_true'] <= df.loc[m,'q90_pred']))
+        else:
+            out['cov80'] = np.nan
+    else:
+        out['cov80'] = np.nan
+    #90%: q05 - q95
+    if {'y_true','q05_pred','q95_pred'}.issubset(df.columns):
+        m = np.isfinite(df['y_true']) & np.isfinite(df['q05_pred']) & np.isfinite(df['q95_pred'])
+        if m.any():
+            out['cov90'] = np.mean((df.loc[m,'y_true'] >= df.loc[m,'q05_pred']) &
+                                   (df.loc[m,'y_true'] <= df.loc[m,'q95_pred']))
+        else:
+            out['cov90'] = np.nan
+    else:
+        out['cov90'] = np.nan
+    return out
+
+def compute_pinball_by_tau(df):
+    """Return DataFrame with pinball loss per τ using sklearn's mean_pinball_loss; NaN-safe mask per τ."""
+    rows = []
+    for tau, col in QCOLS.items():
+        if {'y_true', col}.issubset(df.columns):
+            m = np.isfinite(df['y_true']) & np.isfinite(df[col])
+            if m.any():
+                loss = mean_pinball_loss(df.loc[m,'y_true'].to_numpy(float),
+                                         df.loc[m,col].to_numpy(float),
+                                         alpha=tau)
+                rows.append({'tau': tau, 'pinball_loss': float(loss)})
+            else:
+                rows.append({'tau': tau, 'pinball_loss': np.nan})
+        else:
+            rows.append({'tau': tau, 'pinball_loss': np.nan})
+    return pd.DataFrame(rows)
+
+#LOAD & CLEAN 
+qrf_df = pd.read_csv(qrf_path)
+lqr_df = pd.read_csv(lqr_path)
+lgb_df = pd.read_csv(lgb_path)
+
+#Standardize ids & quantile columns
+qrf_df = coerce_types(normalize_quantile_cols(find_and_rename_id_cols(qrf_df)))
+lqr_df = coerce_types(normalize_quantile_cols(find_and_rename_id_cols(lqr_df)))
+lgb_df = coerce_types(normalize_quantile_cols(find_and_rename_id_cols(lgb_df)))
+
+#Attach y_true to LQR/LGB if missing using QRF as source-of-truth for (token,timestamp)->y_true
+lqr_df = attach_y_true_if_missing(lqr_df, qrf_df)
+lgb_df = attach_y_true_if_missing(lgb_df, qrf_df)
+
+#Keep only necessary columns for each model
+cols_needed = ['token','timestamp','y_true'] + list(QCOLS.values())
+qrf_use = qrf_df[[c for c in cols_needed if c in qrf_df.columns]].copy()
+lqr_use = lqr_df[[c for c in cols_needed if c in lqr_df.columns]].copy()
+lgb_use = lgb_df[[c for c in cols_needed if c in lgb_df.columns]].copy()
+
+#METRICS PER MODEL 
+coverage_records = []
+pinball_records = []
+
+for model, dfm in [('QRF', qrf_use), ('LQR', lqr_use), ('LightGBM', lgb_use)]:
+    cov = compute_coverage(dfm)
+    coverage_records.append({'model': model, 'interval': '80%', 'coverage': cov['cov80']})
+    coverage_records.append({'model': model, 'interval': '90%', 'coverage': cov['cov90']})
+
+    pb = compute_pinball_by_tau(dfm)
+    pb['model'] = model
+    pinball_records.append(pb)
+
+coverage_df = pd.DataFrame(coverage_records)
+pinball_df = pd.concat(pinball_records, ignore_index=True)
+
+#Sanity: pinball must be >= 0 (allowing tiny numerical eps)
+
+#Optional: pretty print / save
+print(coverage_df)
+print(pinball_df.sort_values(['model','tau']))
+
+coverage_df.to_csv('tbl_coverage_summary.csv', index=False)
+pinball_df.to_csv('tbl_pinball_by_tau.csv', index=False)
+````
+
+- **DM Tests comparing QRF to LQR and LightGBM for each quantile**
+
+````
+#=========================
+#Diebold–Mariano table (QRF vs LQR/LGBM)
+#=========================
+import numpy as np
+import pandas as pd
+
+def _pstars(p):
+    if p < 0.001: return "***"
+    if p < 0.01:  return "**"
+    if p < 0.05:  return "*"
+    if p < 0.10:  return "†"
+    return ""
+
+def make_dm_table(DM_df: pd.DataFrame):
+    """
+    Formats DM results into an academic-quality table.
+    Assumes DM statistic is built from (loss_QRF - loss_other):
+      • Negative DM ⇒ QRF lower expected pinball loss (better)
+      • Positive DM ⇒ Comparator better
+    """
+    df = DM_df.copy()
+    #Pretty τ label
+    df["τ"] = df["tau"].apply(lambda t: f"{int(round(t*100)):02d}%")
+
+    #Direction flags
+    df["favours_vs_LQR"] = np.where(df["dm_stat_qrf_vs_lqr"] < 0, "QRF", "LQR")
+    df["favours_vs_LGBM"] = np.where(df["dm_stat_qrf_vs_lgb"] < 0, "QRF", "LightGBM")
+
+    #Select & rename columns for display
+    out = (df[["τ",
+               "dm_stat_qrf_vs_lqr","p_val_qrf_vs_lqr","favours_vs_LQR",
+               "dm_stat_qrf_vs_lgb","p_val_qrf_vs_lgb","favours_vs_LGBM"]]
+             .rename(columns={
+                 "dm_stat_qrf_vs_lqr":"DM (QRF−LQR)",
+                 "p_val_qrf_vs_lqr":"p (QRF−LQR)",
+                 "dm_stat_qrf_vs_lgb":"DM (QRF−LGBM)",
+                 "p_val_qrf_vs_lgb":"p (QRF−LGBM)",
+                 "favours_vs_LQR":"Favours vs LQR",
+                 "favours_vs_LGBM":"Favours vs LGBM"
+             })
+          )
+
+    #Formatting
+    fmt = {
+        "DM (QRF−LQR)":  "{:+.3f}",
+        "DM (QRF−LGBM)": "{:+.3f}",
+        "p (QRF−LQR)":   lambda x: f"{x:.3f}{_pstars(x)}",
+        "p (QRF−LGBM)":  lambda x: f"{x:.3f}{_pstars(x)}",
+    }
+
+    #Highlight significant cells; accent = significant & favours QRF
+    def _highlight(data):
+        styles = pd.DataFrame("", index=data.index, columns=data.columns)
+        for dm_col, p_col, fav_col in [
+            ("DM (QRF−LQR)","p (QRF−LQR)","Favours vs LQR"),
+            ("DM (QRF−LGBM)","p (QRF−LGBM)","Favours vs LGBM"),
+        ]:
+            sig = data[p_col].astype(float) <= 0.05
+            fav_qrf = sig & (data[fav_col] == "QRF")
+            fav_other = sig & (data[fav_col] != "QRF")
+            styles.loc[fav_qrf,  [dm_col,p_col,fav_col]]  = f"font-weight:700; color:{ACCENT}"
+            styles.loc[fav_other,[dm_col,p_col,fav_col]]  = "font-weight:700; color:#B91C1C"  # subtle red
+        return styles
+
+    sty = (out.style
+           .format(fmt)
+           .apply(_highlight, axis=None)
+           .set_properties(**{"text-align":"center"})
+          )
+    caption = ("Diebold–Mariano tests on pinball loss (per τ). "
+               "Negative DM ⇒ QRF lower expected loss; stars denote significance "
+               "(*** <0.001, ** <0.01, * <0.05, † <0.10).")
+    return _base_styler(sty, caption)
+
+#--- Example usage in a Quarto cell ---
+dm_tbl = make_dm_table(DM_df)
+dm_tbl
+````
+
+- **HAC-robust Diebold–Mariano + per-token heatmap**
+
+````
+#================= DM utilities (run once) =================
+import numpy as np, pandas as pd
+from pathlib import Path
+import matplotlib.pyplot as plt
+
+RESULTS_DIR = Path("results"); RESULTS_DIR.mkdir(exist_ok=True)
+TAUS = [0.05,0.10,0.25,0.50,0.75,0.90,0.95]
+TAU2COL = {0.05:"q5",0.10:"q10",0.25:"q25",0.50:"q50",0.75:"q75",0.90:"q90",0.95:"q95"}
+
+def pinball_loss_vec(y, q, tau):
+    diff = y - q
+    return np.maximum(tau*diff, (tau-1)*diff)
+
+def newey_west_var(d, lag=5):
+    """Bartlett kernel HAC variance of mean(d). Returns var(mean(d))."""
+    d = np.asarray(d, dtype=float)
+    d = d[np.isfinite(d)]
+    n = d.size
+    if n <= 1: 
+        return np.nan
+    d = d - d.mean()
+    gamma0 = np.dot(d, d) / n
+    s = gamma0
+    for k in range(1, min(lag, n-1)+1):
+        w = 1 - k/(lag+1)
+        gamma_k = np.dot(d[k:], d[:-k]) / n
+        s += 2*w*gamma_k
+    return s / n  #variance of the sample mean
+
+def dm_test(loss1, loss2, lag=5):
+    """Two-sided DM with NW variance on loss diff."""
+    d = np.asarray(loss1) - np.asarray(loss2)
+    var_hat = newey_west_var(d, lag=lag)
+    if not np.isfinite(var_hat) or var_hat <= 0:
+        return np.nan, np.nan
+    dm = d.mean() / np.sqrt(var_hat)
+    #normal approx for large n
+    from math import erf, sqrt
+    p = 2 * (1 - 0.5*(1 + erf(abs(dm)/np.sqrt(2))))
+    return float(dm), float(p)
+
+#============== DM comparisons: per-τ, per-token =================
+#Update paths here:
+paths = {
+    "QRF":       "qrf_v2_tuned_preds.csv",      # your final QRF v3 preds
+    "LQR":       "lqr_pred_paths_full.csv",               # <-- update
+    "LightGBM":  "lgb_extended_preds.csv"               # <-- update
+}
+
+dfs = {}
+for name, path in paths.items():
+    dfp = pd.read_csv(path, parse_dates=["timestamp"])
+    #Standardise quantile column names to qXX if necessary (for all models)
+    rename_cols = {}
+    for col in dfp.columns:
+        if col == 'q5_pred':
+            rename_cols[col] = 'q5'
+        elif col.startswith('q') and col.endswith('00'):
+            rename_cols[col] = f"{col}_pred"
+        elif col.startswith('q') and 'pred' not in col and col != 'q5':
+            rename_cols[col] = f"{col}_pred"
+    dfp = dfp.rename(columns=rename_cols)
+    for q in ["05","10","25","50","75","90","95"]:
+        col_pred = f"q{q}_pred"
+        col = f"q{q}"
+        if col_pred in dfp.columns and col not in dfp.columns:
+            dfp = dfp.rename(columns={col_pred: col})
+    needed = {"token","timestamp","y_true"}.union(TAU2COL.values())
+    missing = needed - set(dfp.columns)
+    #If 'q5' is missing, fill with NaN so assertion does not fail
+    if "q5" in missing:
+        dfp["q5"] = np.nan
+        missing = needed - set(dfp.columns)
+    assert not missing, f"{name}: missing columns {missing}"
+    dfs[name] = dfp[["token","timestamp","y_true"] + list(TAU2COL.values())].copy()
+
+#Inner-join on token+timestamp so all models are aligned observation-by-observation
+base = dfs["QRF"][["token","timestamp"]].copy()
+for name in ["LQR","LightGBM"]:
+    base = base.merge(dfs[name][["token","timestamp"]], on=["token","timestamp"], how="inner")
+
+#Build aligned frames for each model
+aligned = {}
+for name, dfp in dfs.items():
+    aligned[name] = base.merge(dfp, on=["token","timestamp"], how="left", suffixes=("",""))
+
+#Compute per-token DM for every τ (QRF vs LQR / QRF vs LightGBM)
+rows = []
+lag = 5  # horizon-1 for 72h overlapping returns (6 bars of 12h)
+for tau in TAUS:
+    qcol = TAU2COL[tau]
+    for tok, _ in aligned["QRF"].groupby("token"):
+        g = {m: aligned[m][aligned[m]["token"]==tok] for m in aligned}
+        #Intersection rows only (should align already)
+        y = g["QRF"]["y_true"].to_numpy()
+        mask = np.isfinite(y)
+        #losses
+        L = {}
+        for m in aligned:
+            q = g[m][qcol].to_numpy()
+            mask &= np.isfinite(q)
+        #apply mask
+        y = y[mask]
+        for m in aligned:
+            q = g[m][qcol].to_numpy()[mask]
+            L[m] = pinball_loss_vec(y, q, tau)
+
+        if len(y) < 15:  # skip tiny samples
+            continue
+
+        #DM: QRF better if DM < 0 (lower loss)
+        dm_lqr, p_lqr = dm_test(L["QRF"], L["LQR"], lag=lag)
+        dm_lgb, p_lgb = dm_test(L["QRF"], L["LightGBM"], lag=lag)
+
+        rows.append({"token": tok, "tau": tau,
+                     "dm_qrf_vs_lqr": dm_lqr, "p_qrf_vs_lqr": p_lqr,
+                     "dm_qrf_vs_lgbm": dm_lgb, "p_qrf_vs_lgbm": p_lgb,
+                     "n": int(len(y))})
+
+dm_by_token = pd.DataFrame(rows).sort_values(["tau","token"])
+dm_by_token.to_csv(RESULTS_DIR/"tbl_dm_by_token.csv", index=False)
+print("Saved →", (RESULTS_DIR/"tbl_dm_by_token.csv").resolve())
+
+#Win/Draw/Loss counts per τ (α = 0.05)
+summ = []
+alpha = 0.05
+for tau, g in dm_by_token.groupby("tau"):
+    def wdl(dm, p):
+        if not np.isfinite(dm) or not np.isfinite(p):
+            return "draw"
+        if p < alpha and dm < 0:  # QRF has lower loss
+            return "win"
+        if p < alpha and dm > 0:
+            return "loss"
+        return "draw"
+    wdl_lqr  = g.apply(lambda r: wdl(r["dm_qrf_vs_lqr"],  r["p_qrf_vs_lqr"]),  axis=1).value_counts()
+    wdl_lgbm = g.apply(lambda r: wdl(r["dm_qrf_vs_lgbm"], r["p_qrf_vs_lgbm"]), axis=1).value_counts()
+    summ.append({
+        "tau": tau,
+        "QRF_vs_LQR_win":  int(wdl_lqr.get("win",0)),
+        "QRF_vs_LQR_draw": int(wdl_lqr.get("draw",0)),
+        "QRF_vs_LQR_loss": int(wdl_lqr.get("loss",0)),
+        "QRF_vs_LGBM_win":  int(wdl_lgbm.get("win",0)),
+        "QRF_vs_LGBM_draw": int(wdl_lgbm.get("draw",0)),
+        "QRF_vs_LGBM_loss": int(wdl_lgbm.get("loss",0)),
+    })
+dm_counts = pd.DataFrame(summ).sort_values("tau")
+dm_counts.to_csv(RESULTS_DIR/"tbl_dm_counts.csv", index=False)
+dm_counts
+
+#============== Heatmap of DM statistics (QRF vs LightGBM) =====================
+pivot = dm_by_token.pivot(index="token", columns="tau", values="dm_qrf_vs_lgbm")
+plt.figure(figsize=(8, max(4, 0.35*len(pivot))))
+im = plt.imshow(pivot.values, aspect="auto", cmap="coolwarm", vmin=-3, vmax=3)  # clip around ±3σ
+plt.colorbar(im, label="DM statistic (QRF – LGBM)")
+plt.xticks(range(len(pivot.columns)), [f"{t:.2f}" for t in pivot.columns], rotation=0)
+plt.yticks(range(len(pivot.index)), pivot.index)
+plt.title("Per-token Diebold–Mariano: QRF vs LightGBM (pinball loss)")
+plt.tight_layout()
+plt.gcf().savefig("/Users/james/OneDrive/Documents/GitHub/solana-qrf-interval-forecasting/paper/figures/raw/fig_dm_heatmap_qrf_vs_lgbm.pdf",format="pdf", bbox_inches="tight")
+plt.savefig(RESULTS_DIR/"fig_dm_heatmap_qrf_vs_lgbm.png", dpi=160)
+plt.close()
+print("Saved heatmap →", (RESULTS_DIR/"fig_dm_heatmap_qrf_vs_lgbm.png").resolve())
+````
+
+- **Model Confidence Set (MCS)**
+
+````
+#Utilites
+
+import numpy as np, pandas as pd
+from pathlib import Path
+
+RESULTS_DIR = Path("results"); RESULTS_DIR.mkdir(exist_ok=True)
+TAUS = [0.05,0.10,0.25,0.50,0.75,0.90,0.95]
+TAU2COL = {0.05:"q5",0.10:"q10",0.25:"q25",0.50:"q50",0.75:"q75",0.90:"q90",0.95:"q95"}
+
+def pinball_loss_vec(y, q, tau):
+    diff = y - q
+    return np.maximum(tau*diff, (tau-1)*diff)
+
+def moving_block_bootstrap_indices(n, block_len, rng):
+    """Return indices for one bootstrap sample of length n using moving blocks."""
+    if n <= block_len:
+        start = rng.integers(0, max(1, n-1))
+        idx = np.arange(start, min(n, start+block_len))
+        return np.resize(idx, n)
+    starts = rng.integers(0, n - block_len + 1, size=int(np.ceil(n / block_len)))
+    idx = np.concatenate([np.arange(s, s+block_len) for s in starts])[:n]
+    return idx
+
+def tokenwise_block_resample(panel, block_len, rng):
+    """Resample *within each token* to preserve each token's serial dependence."""
+    out = []
+    for tok, g in panel.groupby("token", sort=False):
+        idx = moving_block_bootstrap_indices(len(g), block_len, rng)
+        out.append(g.iloc[idx])
+    return pd.concat(out, axis=0, ignore_index=True)
+
+def build_aligned_panel(paths):
+    """Return a long panel: columns [token,timestamp,model,tau,loss]."""
+    dfs = {}
+    for name, path in paths.items():
+        dfp = pd.read_csv(path, parse_dates=["timestamp"])
+        #Standardise quantile column names to qXX if necessary (for all models)
+        rename_cols = {}
+        for col in dfp.columns:
+            if col == 'q5_pred':
+                rename_cols[col] = 'q5'
+            elif col.startswith('q') and col.endswith('00'):
+                rename_cols[col] = f"{col}_pred"
+            elif col.startswith('q') and 'pred' not in col and col != 'q5':
+                rename_cols[col] = f"{col}_pred"
+        dfp = dfp.rename(columns=rename_cols)
+        for q in ["05","10","25","50","75","90","95"]:
+            col_pred = f"q{q}_pred"
+            col = f"q{q}"
+            if col_pred in dfp.columns and col not in dfp.columns:
+                dfp = dfp.rename(columns={col_pred: col})
+        needed = {"token","timestamp","y_true"}.union(TAU2COL.values())
+        missing = needed - set(dfp.columns)
+        #If 'q5' is missing, fill with NaN so assertion does not fail
+        if "q5" in missing:
+            dfp["q5"] = np.nan
+            missing = needed - set(dfp.columns)
+        assert not missing, f"{name}: missing columns {missing}"
+        dfs[name] = dfp[["token","timestamp","y_true"] + list(TAU2COL.values())].copy()
+
+    #Align on the intersection of timestamps per token across all models
+    base = dfs[next(iter(dfs))][["token","timestamp"]].copy()
+    for name in dfs:
+        if name == next(iter(dfs)): 
+            continue
+        base = base.merge(dfs[name][["token","timestamp"]], on=["token","timestamp"], how="inner")
+
+    panels = []
+    for name, dfp in dfs.items():
+        g = base.merge(dfp, on=["token","timestamp"], how="left")
+        long = []
+        for tau, qcol in TAU2COL.items():
+            loss = pinball_loss_vec(g["y_true"].to_numpy(), g[qcol].to_numpy(), tau)
+            long.append(pd.DataFrame({
+                "token": g["token"].values,
+                "timestamp": g["timestamp"].values,
+                "model": name,
+                "tau": tau,
+                "loss": loss
+            }))
+        panels.append(pd.concat(long, axis=0, ignore_index=True))
+    panel = pd.concat(panels, axis=0, ignore_index=True)
+    #keep finite rows only
+    panel = panel[np.isfinite(panel["loss"])].reset_index(drop=True)
+    return panel
+
+def mcs_once(loss_mat, models, rng, block_len=6, B=1000, alpha=0.10):
+    """
+    Hansen et al. MCS using the Tmax statistic:
+    - d_i,t = l_i,t - mean_j l_j,t
+    - t_i = sqrt(n)*mean(d_i)/sd_bootstrap(mean(d_i)^*)
+    - T_max = max_i t_i; eliminate argmax if p < alpha
+    Returns surviving models and elimination log.
+    """
+    current = list(models)
+    elim_log = []
+    #loss_mat: dataframe with columns ['token','timestamp'] + models, for a fixed τ
+    base_cols = ["token","timestamp"]
+    key = loss_mat[base_cols].copy()
+
+    while len(current) > 1:
+        L = loss_mat[current].to_numpy()
+        n = L.shape[0]
+        #d_i,t relative to cross-model mean
+        d = L - L.mean(axis=1, keepdims=True)  # (n, m)
+        dbar = d.mean(axis=0)                  # (m,)
+        #bootstrap means of d_i
+        dbar_boot = []
+        for b in range(B):
+            #resample tokenwise with blocks
+            boot_idx = []
+            for tok, g in loss_mat.groupby("token", sort=False):
+                idx = moving_block_bootstrap_indices(len(g), block_len, rng)
+                #Map to the corresponding rows of this tau-specific matrix
+                start = g.index.min()
+                boot_idx.append(start + idx)
+            boot_idx = np.concatenate(boot_idx)
+            db = d[boot_idx, :].mean(axis=0)
+            dbar_boot.append(db)
+        dbar_boot = np.vstack(dbar_boot)  # (B, m)
+        #studentized t_i
+        sd = dbar_boot.std(axis=0, ddof=1)
+        #avoid zeros
+        sd = np.where(sd <= 1e-12, np.inf, sd)
+        t_i = np.sqrt(n) * dbar / sd
+        T_obs = np.max(t_i)
+
+        #bootstrap Tmax
+        t_i_boot = np.sqrt(n) * (dbar_boot - dbar) / sd
+        T_boot = np.max(t_i_boot, axis=1)
+        pval = float((T_boot >= T_obs).mean())
+
+        #stop if we can't reject EPA
+        if pval >= alpha:
+            break
+
+        #eliminate worst model (largest t_i)
+        worst_idx = int(np.argmax(t_i))
+        worst_model = current[worst_idx]
+        elim_log.append({"eliminated": worst_model, "Tmax": float(T_obs), "pval": pval, "k": len(current)})
+        current.pop(worst_idx)
+        #drop the model from loss_mat
+        loss_mat = loss_mat.drop(columns=[worst_model])
+
+    return current, pd.DataFrame(elim_log)
+
+#Run MCS across τ (pooled over tokens)
+
+#Set your file paths here
+paths = {
+    "QRF":      "qrf_v2_tuned_preds.csv",
+    "LQR":      "lqr_pred_paths_full.csv",     # <-- update to your path
+    "LightGBM": "lgb_extended_preds.csv"     # <-- update to your path
+}
+
+panel = build_aligned_panel(paths)
+
+rng = np.random.default_rng(42)
+alpha = 0.10
+B = 1000
+block_len = 6  # 6×12h = 72h overlap
+
+survivors, logs = [], []
+
+for tau in TAUS:
+    sub = panel[panel["tau"] == tau].copy()
+    if sub.empty:
+        survivors.append({"tau": tau, "survivors": "no data"})
+        continue
+
+    sub = sub.sort_values(["token","timestamp","model"])
+    pivot = sub.pivot_table(index=["token","timestamp"], columns="model", values="loss", aggfunc="mean")
+
+    #Ensure all model columns exist; if absent, create filled with NaN
+    for m in paths.keys():
+        if m not in pivot.columns:
+            pivot[m] = np.nan
+
+    pivot = pivot.reset_index()
+
+    #Keep only models actually present as columns
+    present_models = [m for m in paths.keys() if m in pivot.columns]
+    if len(present_models) < 2:
+        survivors.append({"tau": tau, "survivors": "insufficient models"})
+        continue
+
+    #Drop rows with NaN in any of the present models (so comparisons are aligned)
+    pivot = pivot.dropna(subset=present_models)
+    if pivot.empty or pivot.shape[0] < 20:
+        survivors.append({"tau": tau, "survivors": "insufficient data"})
+        continue
+
+    #If more than 1 model present, run MCS on those
+    keep, log = mcs_once(
+        loss_mat=pivot[["token","timestamp"] + present_models],
+        models=present_models,
+        rng=rng, block_len=block_len, B=B, alpha=alpha
+    )
+
+    survivors.append({"tau": tau, "survivors": ",".join(keep)})
+    if len(log):
+        log["tau"] = tau
+        logs.append(log)
+
+mcs_survivors = pd.DataFrame(survivors)
+mcs_log = pd.concat(logs, ignore_index=True) if len(logs) else pd.DataFrame(columns=["eliminated","Tmax","pval","k","tau"])
+
+mcs_survivors.to_csv(RESULTS_DIR/"tbl_mcs_survivors.csv", index=False)
+mcs_log.to_csv(RESULTS_DIR/"tbl_mcs_elimination_log.csv", index=False)
+print("Saved:", (RESULTS_DIR/"tbl_mcs_survivors.csv").resolve(), (RESULTS_DIR/"tbl_mcs_elimination_log.csv").resolve())
+mcs_survivors
+````
+
+- **Reliability by Regime**
+
+````
+df = pd.read_csv("features_v1_tail.csv", parse_dates=["timestamp"])
+pred = pd.read_csv("qrf_v2_tuned_preds.csv", parse_dates=["timestamp"])
+#resolve regime labels for (token,timestamp) 
+def resolve_regime_labels(df_fold: pd.DataFrame) -> pd.Series:
+    if "vol_regime" in df_fold.columns:
+        reg = df_fold["vol_regime"]
+        if pd.api.types.is_numeric_dtype(reg):
+            out = pd.Series(np.where(reg >= 3, "volatile", np.where(reg <= 1, "quiet", "mid")),
+                            index=reg.index, dtype="object")
+            out[reg.isna()] = "mid"
+            return out
+        m = {"low":"quiet","quiet":"quiet","calm":"quiet","mid":"mid","normal":"mid",
+             "high":"volatile","volatile":"volatile","wild":"volatile"}
+        return reg.astype(str).str.lower().map(m).fillna("mid")
+    #fallback: proxy vol (first available)
+    proxy = next((c for c in ["gk_vol_36h","parkinson_vol_36h","vol_std_7bar","downside_vol_3bar"] if c in df.columns), None)
+    if proxy:
+        v = df[proxy]
+        q1, q2 = v.quantile([0.33,0.66])
+        out = pd.Series(np.where(v>=q2,"volatile",np.where(v<=q1,"quiet","mid")), index=v.index, dtype="object")
+        out[v.isna()] = "mid"
+        return out
+    return pd.Series(["mid"]*len(df), index=df.index, dtype="object")
+
+#Define column names
+TOKEN_COL = "token"
+TIME_COL = "timestamp"
+
+reg_labs = df[[TOKEN_COL, TIME_COL]].copy()
+reg_labs["regime"] = resolve_regime_labels(df)
+
+#Ensure timestamp columns are datetime for merge
+reg_labs[TIME_COL] = pd.to_datetime(reg_labs[TIME_COL])
+pred["timestamp"] = pd.to_datetime(pred["timestamp"])
+
+#Join with predictions (filtered set if you want)
+pred_reg = pred.merge(reg_labs.rename(columns={TOKEN_COL:"token", TIME_COL:"timestamp"}),
+                      on=["token","timestamp"], how="left")
+
+rows=[]
+for rg, g in pred_reg.groupby("regime"):
+    y = g["y_true"].to_numpy()
+    rows.append({
+        "regime": rg,
+        "coverage80": ((y>=g["q10"])&(y<=g["q90"])).mean(),
+        "coverage90": ((y>=g["q5"]) &(y<=g["q95"])).mean(),
+        "width80": (g["q90"]-g["q10"]).mean(),
+        "width90": (g["q95"]-g["q5"]).mean(),
+        "n": len(g)
+    })
+reg_tbl = pd.DataFrame(rows).sort_values("regime")
+reg_tbl.to_csv(RESULTS_DIR/"tbl_reliability_by_regime_qrf.csv", index=False)
+reg_tbl
+````
+
+- **Sharpness Coverage**
+
+````
+#Paths (update if yours are different)
+paths = {
+    "QRF":      Path("qrf_v2_tuned_preds.csv"),
+    "LQR":      Path("lqr_pred_paths_full.csv"),
+    "LightGBM": Path("lgb_extended_preds.csv")
+}
+
+eff_rows = []
+for name, p in paths.items():
+    if not p.exists():
+        print(f"Warning: missing {name} predictions at {p}, skipping.")
+        continue
+    d = pd.read_csv(p, parse_dates=["timestamp"])
+    #If columns are named 'q5', 'q10', etc., rename to 'q05_pred', 'q10_pred', etc.
+    rename_cols = {}
+    for col in d.columns:
+        if col == 'q5':
+            rename_cols[col] = 'q05_pred'
+        elif col == 'q10':
+            rename_cols[col] = 'q10_pred'
+        elif col == 'q90':
+            rename_cols[col] = 'q90_pred'
+        elif col == 'q95':
+            rename_cols[col] = 'q95_pred'
+    if rename_cols:
+        d = d.rename(columns=rename_cols)
+    need = {"token", "timestamp", "y_true", "q05_pred", "q10_pred", "q90_pred", "q95_pred"}
+    if not need.issubset(d.columns):
+        print(f"Warning: {name} file missing required columns, skipping.")
+        continue
+    y = d["y_true"].to_numpy()
+    eff_rows += [
+        {"model": name, "interval": "80%", "coverage": ((y >= d["q10_pred"]) & (y <= d["q90_pred"])).mean(), "width": (d["q90_pred"] - d["q10_pred"]).mean()},
+        {"model": name, "interval": "90%", "coverage": ((y >= d["q05_pred"]) & (y <= d["q95_pred"])).mean(), "width": (d["q95_pred"] - d["q05_pred"]).mean()},
+    ]
+
+eff = pd.DataFrame(eff_rows)
+eff.to_csv(RESULTS_DIR / "tbl_efficiency_scatter.csv", index=False)
+eff
+````
+
+- **Backtesting**
+
+````
+#===== Quantile-to-signal backtest (72h horizon, non-overlapping) ==============
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from pathlib import Path
+
+RESULTS = Path("results"); RESULTS.mkdir(exist_ok=True)
+
+#---- 1) Load predictions 
+def load_preds(path):
+    d = pd.read_csv(path, parse_dates=["timestamp"])
+    need = {"token","timestamp","y_true","q5","q10","q25","q50","q75","q90","q95"}
+    missing = need - set(d.columns)
+    assert not missing, f"{path} missing: {missing}"
+    d = d.sort_values(["token","timestamp"]).reset_index(drop=True)
+    #ensure numeric
+    for c in ["y_true","q5","q10","q25","q50","q75","q90","q95"]:
+        d[c] = pd.to_numeric(d[c], errors="coerce")
+    return d
+
+models = {}
+models["QRF"] = load_preds("qrf_v2_tuned_preds.csv")
+#Optional peers (comment out if unavailable)
+if Path("lgbm_preds.csv").exists():
+    models["LightGBM"] = load_preds("lgbm_preds.csv")
+if Path("lqr_preds.csv").exists():
+    models["LQR"] = load_preds("lqr_preds.csv")
+
+#2) Position sizing policies
+EPS = 1e-6
+S_MAX = 1.0          # per-token cap (absolute size)
+GROSS_CAP = 1.0      # portfolio gross cap at each timestamp (sum |sizes| <= GROSS_CAP)
+
+#Costs per side in basis points
+FEE_BPS  = 15        # e.g., 0.15% per side total (DEX fee + misc)
+SLIP_BPS = 10        # slippage estimate per side
+COST_PER_SIDE = (FEE_BPS + SLIP_BPS) / 1e4  # convert bps to decimals
+
+MIN_EDGE = 0.0       # optional |q50| filter for Policy B
+
+def size_policy_A(df):
+    """Risk-scaled continuous sizing: s = clip(q50 / (|q10|+eps), [-S_MAX,S_MAX])."""
+    s = (df["q50"] / (df["q10"].abs() + EPS)).clip(-S_MAX, S_MAX)
+    return s
+
+def size_policy_B(df):
+    """High-confidence, thresholded: long if q10>0, short if q90<0, else 0. Optional |q50| filter."""
+    s = np.where(df["q10"] > 0,  1.0,
+        np.where(df["q90"] < 0, -1.0, 0.0))
+    s = np.where(np.abs(df["q50"]) >= MIN_EDGE, s, 0.0)
+    return pd.Series(s, index=df.index, dtype=float)
+
+def apply_gross_cap(frame, size_col="size", cap=GROSS_CAP):
+    """At each timestamp, scale sizes so sum |size| <= cap."""
+    g = frame.groupby("timestamp")[size_col].apply(lambda s: np.maximum(s.abs().sum(), 1e-12))
+    scale = (cap / g).reindex(frame["timestamp"]).to_numpy()
+    #only scale where sum|s|>cap
+    sumabs = frame.groupby("timestamp")[size_col].transform(lambda s: s.abs().sum())
+    need = sumabs > cap + 1e-12
+    out = frame[size_col].copy()
+    out.loc[need] = out.loc[need] * scale[need.to_numpy()]
+    return out
+
+def backtest_on_predictions(pred_df, policy_fn, label):
+    df = pred_df.copy()
+    #Build raw sizes
+    df["size"] = policy_fn(df).astype(float)
+    #Cap per-token
+    df["size"] = df["size"].clip(-S_MAX, S_MAX)
+    #Cap portfolio gross per timestamp
+    df["size"] = apply_gross_cap(df, "size", GROSS_CAP)
+
+    #Round-trip cost deducted at entry: 2 * COST_PER_SIDE * |size|
+    round_trip_cost = 2.0 * COST_PER_SIDE
+    df["ret_gross"] = df["size"] * df["y_true"]
+    df["ret_net"]   = df["ret_gross"] - round_trip_cost * df["size"].abs()
+
+    #Aggregate to portfolio (equal across tokens after sizing)
+    port = df.groupby("timestamp")["ret_net"].mean().to_frame("ret").reset_index()
+
+    #Metrics on 72h-step series
+    r = port["ret"].to_numpy()
+    mean = float(np.nanmean(r))
+    std  = float(np.nanstd(r))
+    downside = r[r<0]
+    sortino = mean / (np.nanstd(downside) + 1e-12) if downside.size else np.nan
+    sharpe  = mean / (std + 1e-12)
+
+    #Max drawdown
+    nav = (1.0 + port["ret"]).cumprod()
+    roll_max = nav.cummax()
+    max_dd = float(((nav/roll_max)-1).min())
+
+    #Hit-rate (directional correctness)
+    hit = float((np.sign(df["size"]) * df["y_true"] > 0).mean())
+
+    #Turnover proxy (sum |size| per timestamp)
+    avg_gross = float(df.groupby("timestamp")["size"].apply(lambda s: s.abs().sum()).mean())
+
+    out = {
+        "model": label,
+        "policy": policy_fn.__name__,
+        "mean_ret": mean,
+        "vol": std,
+        "sharpe": sharpe,
+        "sortino": sortino,
+        "max_drawdown": max_dd,
+        "hit_rate": hit,
+        "avg_gross": avg_gross,
+        "periods": len(port),
+        "trades": len(df)
+    }
+    return out, port, df[["token","timestamp","size","y_true","ret_net"]]
+
+#---- 3) Run: QRF with both policies (and peers if you like) -------------------
+rows = []
+curves = {}
+tradelogs = {}
+
+for mname, preds in models.items():
+    for policy in (size_policy_A, size_policy_B):
+        res, port, trades = backtest_on_predictions(preds, policy, mname)
+        key = f"{mname}-{policy.__name__}"
+        rows.append(res)
+        curves[key] = port.assign(nav=(1+port["ret"]).cumprod())
+        trades.to_csv(RESULTS/f"trades_{key}.csv", index=False)
+
+perf = pd.DataFrame(rows).sort_values(["model","policy"]).reset_index(drop=True)
+perf.to_csv(RESULTS/"tbl_backtest_perf.csv", index=False)
+perf
+````
+
+- **Risk-Aware Sizing Backtest**
+
+````
+import numpy as np, pandas as pd, matplotlib.pyplot as plt
+from pathlib import Path
+
+pred = pd.read_csv("qrf_v2_tuned_preds.csv", parse_dates=["timestamp"]).sort_values(["token","timestamp"])
+EPS = 1e-6
+S_MAX = 1.0
+GROSS_CAP = 1.0
+FEE_BPS, SLIP_BPS = 15, 10
+COST_PER_SIDE = (FEE_BPS + SLIP_BPS)/1e4
+
+def policy_A(df):  # risk-scaled continuous
+    return (df["q50"] / (df["q10"].abs() + EPS)).clip(-S_MAX, S_MAX)
+
+def policy_B(df):  # thresholded
+    return np.where(df["q10"]>0, 1.0, np.where(df["q90"]<0, -1.0, 0.0))
+
+def apply_gross_cap(frame, size_col="size", cap=GROSS_CAP):
+    scale = (cap / frame.groupby("timestamp")[size_col].apply(lambda s: max(s.abs().sum(),1e-12)))
+    scale = scale.reindex(frame["timestamp"]).to_numpy()
+    out = frame[size_col].copy()
+    need = frame.groupby("timestamp")[size_col].transform(lambda s: s.abs().sum()) > cap + 1e-12
+    out.loc[need] = out.loc[need] * scale[need.to_numpy()]
+    return out
+
+def token_backtest(df_tok, policy_fn):
+    df = df_tok.copy()
+    df["size"] = policy_fn(df)
+    df["size"] = apply_gross_cap(df, "size", GROSS_CAP)
+    rt_cost = 2.0*COST_PER_SIDE
+    df["ret_net"] = df["size"]*df["y_true"] - rt_cost*df["size"].abs()
+    #72h step equity for this token
+    nav = (1+df["ret_net"]).cumprod()
+    r = df["ret_net"].to_numpy()
+    sharpe = float(np.nanmean(r) / (np.nanstd(r)+1e-12))
+    sortino = float(np.nanmean(r) / (np.nanstd(r[r<0])+1e-12)) if np.any(r<0) else np.nan
+    max_dd = float(((nav / nav.cummax()) - 1).min())
+    hit = float((np.sign(df["size"]) * df["y_true"] > 0).mean())
+    return {"sharpe": sharpe, "sortino": sortino, "max_dd": max_dd, "hit": hit}, df.assign(nav=nav)
+
+#Per-token metrics for both policies
+rows=[]
+for tok, g in pred.groupby("token"):
+    mA, _ = token_backtest(g, policy_A)
+    mB, _ = token_backtest(g, policy_B)
+    rows.append({"token": tok, "A_sharpe":mA["sharpe"], "A_sortino":mA["sortino"], "A_maxDD":mA["max_dd"], "A_hit":mA["hit"],
+                          "B_sharpe":mB["sharpe"], "B_sortino":mB["sortino"], "B_maxDD":mB["max_dd"], "B_hit":mB["hit"]})
+tok_perf = pd.DataFrame(rows).sort_values("A_sharpe", ascending=False)
+tok_perf.to_csv("results/tbl_token_backtest_qrf.csv", index=False)
+tok_perf.head(10)
+
+````

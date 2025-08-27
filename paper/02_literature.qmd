@@ -1,12 +1,12 @@
 # Literature Review
 
-## The Challenge: Statistical Properties of Cryptocurrency Returns
+#### The Challenge: Statistical Properties of Cryptocurrency Returns
 
 The return distributions of cryptocurrencies are characterised by heavy tails, significant skew, and extreme kurtosis relative to traditional assets, reflecting the frequency of large, abrupt price movements [@Gkillas2018]. This leptokurtosis is compounded by pronounced volatility clustering, periods of relative calm followed by explosive variability, a dynamic exacerbated by the market's continuous operation and fragmented liquidity, which can amplify shocks across uncoordinated venues.
 
 Crucially, this extreme risk is also largely idiosyncratic to the crypto market. Major cryptocurrencies carry substantial tail risk that is not strongly correlated with traditional stock market indices; instead, extreme events are driven by crypto-specific factors such as investor sentiment, regulatory news, or network-level events [@Borri2019]. Furthermore, their returns show little to no exposure to standard macroeconomic risk factors, being influenced instead by internal drivers like network momentum and adoption metrics [@Liu2021]. This body of evidence demonstrates that classical financial risk models, with their reliance on Gaussian assumptions and traditional risk factors, are fundamentally misspecified for crypto assets. A credible forecasting framework must therefore abandon these assumptions and be built to incorporate the crypto-native features that drive risk.
 
-## Approaches to Quantile Estimation
+#### Approaches to Quantile Estimation
 
 Given the non-normal character of crypto returns established previously, estimating the full conditional distribution is more informative than forecasting its central tendency. Quantile regression provides a natural framework for this, but the choice between a restrictive parametric model and a flexible non-parametric one is critical.
 
@@ -23,7 +23,7 @@ Gradient boosting presents another powerful non-parametric paradigm. It construc
 
 In sharp contrast to QRF's parallelised construction, boosting's sequential focus on difficult-to-predict instances can yield sharper estimates in the tails. This potential for higher accuracy, however, comes with significant trade-offs. A separate model must typically be trained for each target quantile, imposing a considerable computational burden. The aggressive, error-focused fitting can also produce "ragged" and unstable quantile estimates in regions with sparse data and may overfit transient noise without careful regularisation. Finally, like LQR, independently fitted boosting models are susceptible to the problem of quantile crossing.
 
-## Ensuring Rigour: Calibration, Evaluation, and Comparison
+#### Ensuring Rigour: Calibration, Evaluation, and Comparison
 
 Selecting a flexible forecasting model is insufficient on its own; its predictive performance must be evaluated using principled metrics, its outputs calibrated to ensure reliability, and its superiority over alternatives established through formal statistical tests.
 
@@ -36,7 +36,7 @@ Conformal prediction provides a distribution-free framework to correct for such 
 #### Statistically Significant Comparisons: The Diebold-Mariano Test
 To move beyond descriptive comparisons of average loss, formal statistical tests are required to determine if the performance difference between two models is significant. The Diebold-Mariano (DM) test [@Diebold1995] provides a standard framework for this, on rolling loss differentials (see Methods). For the multi-step, overlapping forecasts used in this project, the sequence of loss differentials will be autocorrelated by construction. It is therefore critical to use a heteroskedasticity and autocorrelation consistent (HAC) variance estimator, as recommended by [@West1996], to ensure valid statistical inference.
 
-## Methodological Requirements for Robust Time-Series Forecasting
+#### Methodological Requirements for Robust Time-Series Forecasting
 
 The foundational literature establishes the potential of non-parametric models, but their successful application to volatile, non-stationary financial time series is contingent upon a number of specific methodological adaptations. This section reviews the literature concerning these essential requirements, from ensuring the logical coherence of predictions to adapting models to the temporal dynamics of the data.
 
@@ -55,7 +55,7 @@ Even correctly specified quantile models can exhibit systematic biases in finite
 
 While the CQR framework discussed previously is one such solution, the literature offers several alternatives. Methods like the Jackknife+ [@Barber2021] and residual bootstraps provide different mechanisms for constructing prediction intervals with more reliable coverage properties. The existence of this rich literature on calibration highlights a crucial principle for risk management applications: a model's raw output cannot be taken at face value. An explicit calibration step is required to correct for inherent biases and ensure the resulting prediction intervals are empirically "honest".
 
-## Integrating Crypto-Native Data Sources
+#### Integrating Crypto-Native Data Sources
 
 The literature on cryptocurrency risk factors makes it clear that models confined to historical price data are insufficient. The unique nature of blockchain-based assets provides a rich set of crypto-native data sources that are essential for capturing the specific drivers of risk and return in this asset class.
 
@@ -68,7 +68,7 @@ Blockchains provide a transparent ledger of network activity, offering powerful 
 #### Cross-Asset Spillovers and Systemic Risk
 The cryptocurrency market is a highly interconnected system where shocks to major assets like Bitcoin and Ethereum often propagate to smaller altcoins. This "connectedness" has been formally measured, showing significant return and, particularly, volatility spillovers from market leaders to the rest of the ecosystem [@Koutmos2018; @Diebold2014]. This implies that the risk of an individual token is not purely idiosyncratic; it is also a function of the broader crypto market's state. Consequently, any forecasting model that treats a token in isolation is fundamentally misspecified and is likely to underestimate systemic risk. A robust framework must therefore account for these cross-asset influences.
 
-## Synthesis and Conclusion
+#### Synthesis and Conclusion
 
 This review has established a clear and compelling justification for the methodology adopted in this dissertation. The unique statistical properties of cryptocurrency returns—heavy tails, volatility clustering, and dependence on idiosyncratic, on-chain factors—render traditional parametric models inadequate. This failure necessitates the use of flexible, non-parametric methods, for which Quantile Regression Forests are a logical choice, given their ability to capture complex, non-linear relationships without restrictive distributional assumptions.
 

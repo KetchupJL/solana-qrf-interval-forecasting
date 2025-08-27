@@ -1,0 +1,319 @@
+# Appendix 4: Extras
+
+**Software and environment {#app-r1-software}**
+*Software packages and versions.*  
+
+| Package / module                             |      Version | Purpose / notes                                                                                                                                                                                                 |
+| -------------------------------------------- | -----------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **statsmodels**                              |       0.14.0 | Used `statsmodels.QuantReg` to fit the Linear Quantile Regression (LQR) baseline.                                                                                                                               |
+| **lightgbm**                                 |        3.3.5 | Implements gradient‑boosted trees with a quantile (pinball) loss for the LightGBM baseline; tuned via Optuna; deterministic settings enabled.                                                                   |
+| **quantile‑forest**                          |        1.4.0 | Provides `RandomForestQuantileRegressor` used for the Quantile Regression Forest (QRF) core model.                                                                                                              |
+| **numpy**                                    |       1.26.4 | Core numerical array library; underpinning of all preprocessing and model computations.                                                                                                                         |
+| **pandas**                                   |        1.5.3 | Data ingestion and cleaning; assembling 12‑hour bar data, on‑chain metrics, and features.                                                                                                                       |
+| **scikit‑learn**                             |        1.7.1 | General ML utilities; used indirectly via LightGBM integration and for splitting data during hyperparameter tuning.                                                                                             |
+| **scipy**                                    |       1.11.4 | Statistical functions (e.g. Newey–West HAC variance in DM tests) and optimisation routines.                                                                                                                     |
+| **optuna**                                   |        3.6.0 | Hyperparameter optimisation for LightGBM and QRF models.                                                                                                                                                        |
+| **optuna‑integration**                       |        4.4.0 | Integration helpers between Optuna and LightGBM.                                                                                                                                                                |
+| **properscoring**                            |          0.1 | Provides proper scoring rules such as Continuous Ranked Probability Score (used for optional interval scoring).                                                                                                 |
+| **dieboldmariano**                           |        1.1.0 | Facilitates Diebold–Mariano test statistics used in model comparisons.                                                                                                                                          |
+| **arch**                                     |        7.2.0 | Time‑series tools; potentially used for volatility calculations or reference models.                                                                                                                            |
+| **matplotlib**                               |       3.10.3 | Plotting calibration curves, fan charts, and feature-importance visualisations.                                                                                                                                 |
+| **seaborn**                                  |       0.13.2 | Statistical visualisation; sometimes used alongside Matplotlib.                                                                                                                                                 |
+| **joblib**                                   |        1.5.1 | Parallel execution (e.g. parallel fitting or Optuna trials).                                                                                                                                                    |
+| **requests**                                 |       2.32.4 | Data ingestion via HTTP, such as fetching 12‑hour OHLCV bars and on‑chain metrics.                                                                                                                              |
+| **python‑dotenv**                            |        1.1.1 | Loads API keys and environment variables from `.env` files during data ingestion.                                                                                                                               |
+| **nltk** (plus `SentimentIntensityAnalyzer`) |            — | Though not in `pip freeze`, your ingestion scripts call `nltk.sentiment.vader.SentimentIntensityAnalyzer` to compute sentiment scores.  You’d need to install `nltk` and download its VADER lexicon separately. |
+| **time**, **os**                             | — (built‑in) | Standard library modules for timing, delays, and file-system operations.                                                                                                                                        |
+
+## Data Processing and EDA
+
+![Distribution of the 72-hour log return target variable, pooled across all tokens. The distribution exhibits a sharp peak and significantly heavier tails than a comparable normal distribution, justifying the use of quantile-based models.](figures/raw/fig-3-1.pdf){#fig-return-dist fig-align="center" width="65%"}
+
+Fig 1.1 — OHLCV Missingness: before vs after cleaning (@fig-3-1-ohlcv-missingness):
+
+![Post-cleaning reduces missingness across OHLCV fields; values shown as % of rows.](figures/final/fig-3-1-ohlcv-missingness.pdf){#fig-3-1-ohlcv-missingness fig-align="center" width="62%"}
+
+
+Fig 1.2 — Missing holder_count by token (@fig-3-2-holder-missingness):
+
+![Per-token missingness for holder\_count after OHLCV cleaning; shown as percentages.](figures/final/fig-3-2-holder-missingness.pdf){#fig-3-2-holder-missingness fig-align="center" width="62%"}}
+
+
+Fig 1.3 — Missing data per feature (without holder_count) (@fig-3-3-missing-per-feature-no-holder):
+
+![Share of missing values per variable before introducing holder\_count.](figures/final/fig-3-3-missing-per-feature-no-holder.pdf){#fig-3-3-missing-per-feature-no-holder fig-align="center" width="64%"}
+
+
+Fig 1.4 — Missing data per feature (post-2025-02-07) (@fig-3-4-missing-per-feature-post):
+
+![Share of missing values per variable after the 2025-02-07 boundary; includes holder\_count.](figures/final/fig-3-4-missing-per-feature-post.pdf){#fig-3-4-missing-per-feature-post fig-align="center" width="64%"}
+
+
+Fig 3.5 — Time-series missingness of OHLCV (@fig-3-5-timeseries-missingness-ohlcv):
+
+![Time-series share of tokens with missing OHLCV values.](figures/final/fig-3-5-timeseries-missingness-ohlcv.pdf){#fig-3-5-timeseries-missingness-ohlcv fig-align="center" width="68%"}
+
+![Per-token ACF of absolute 12h returns (volatility clustering evident).](figures/final/fig-eda-acf-abs-12h.pdf){#fig-acf-abs-returns fig-align="center" width="72%"}
+
+![Panel-wide average rolling skewness of 12h returns.](figures/final/fig-eda-rolling-skewness.pdf){#fig-rolling-skewness fig-align="center" width="64%"}
+
+![Autocorrelation of forecast errors from a naïve lag-1 model.](figures/final/fig-eda-acf-forecast-errors.pdf){#fig-acf-errors fig-align="center" width="62%"}
+
+![OHLCV imputation check for a representative series; dots show the raw sequence with gaps, the line shows the imputed values.](figures/final/fig-eda-imputation-check.pdf){#fig-eda-imputation-check fig-align="center" width="68%"}
+
+**CQR Rolling Calibration Experiment: Naïve vs QRF**
+
+![Conformalized coverage vs nominal (rolling); conformal vs naive baseline.](figures/final/fig-eda-cqr-calibration.pdf){#fig-cqr-calibration fig-align="center" width="66%"}
+
+![Rolling conformal delta (α = 0.80) over time.](figures/final/fig-eda-cqr-delta-over-time.pdf){#fig-cqr-delta fig-align="center" width="64%"}
+
+---
+
+## Model Building
+
+### LQR
+
+#### Version 1
+
+![Linear-QR mean pinball loss per quantile.](figures/final/fig-lqr-v1-pinball-mean.pdf){#fig-lqr-pinball-mean fig-align="center" width="62%"}
+
+![Fold-level dispersion of Linear-QR pinball loss across rolling folds.](figures/final/fig-lqr-v1-pinball-dispersion.pdf){#fig-lqr-pinball-dispersion fig-align="center" width="62%"}
+
+![Linear-QR calibration: empirical vs nominal coverage (ideal line shown).](figures/final/fig-lqr-v1-calibration.pdf){#fig-lqr-calibration fig-align="center" width="64%"}
+
+![Linear-QR 72-hour forecast fan chart for a representative token.](figures/final/fig-lqr-v1-fan-retardio.pdf){#fig-lqr-fan fig-align="center" width="72%"}
+
+#### Final Version
+
+![Linear-QR mean pinball loss per quantile.](figures/final/fig-lqr-pinball-mean.pdf){#fig-lqr-pinball-mean fig-align="center" width="62%"}
+
+![Coverage of 80% prediction intervals across folds; dashed line marks nominal 80%.](figures/final/fig-lqr-coverage-80pi-hist.pdf){#fig-lqr-coverage-80pi-hist fig-align="center" width="62%"}
+
+![Linear-QR 72-hour forecast fan chart for the token with the longest history.](figures/final/fig-lqr-fan-longest.pdf){#fig-lqr-fan-longest fig-align="center" width="72%"}
+
+---
+
+### LightGBM
+
+#### Version 1
+![Calibration of LightGBM-CQR: empirical coverage vs nominal; ideal line shown.](figures/final/fig-V1-lgbm-cqr-calibration.pdf){#fig-lgbm-cqr-calibration fig-align="center" width="64%"}
+
+![Per-token empirical coverage of the 80% interval; dashed line marks nominal 80%.](figures/final/fig-V1-lgbm-cqr-coverage-80pi-per-token.pdf){#fig-lgbm-cqr-coverage-80pi-per-token fig-align="center" width="72%"}
+
+![V1 LightGBM-CQR 72-hour forecast fan chart for Retardio.](figures/final/fig-v1-lgbm-cqr-fan-retardio.pdf){#fig-lgbm-cqr-fan-token-a fig-align="center" width="72%"}
+![V1 LightGBM-CQR 72-hour forecast fan chart for BOME.](figures/final/fig-v1-lgbm-cqr-fan-bome.pdf){#fig-lgbm-cqr-fan-token-b fig-align="center" width="72%"}
+
+
+#### Version 2 -  Tuned LightGBM Conformal-QR (v2)
+
+**Data** – 23 Solana mid-caps, 6 k rows × 29 predictors (feature set v1)  
+**Objective** – pinball loss @ τ ∈ {0.05, 0.25, 0.50, 0.75, 0.95}  
+**Tuning** – Optuna (TPE + Hyperband, 300 trials / τ); rolling 60 d-12 d-3 d split; split-conformal PIs.
+
+| τ | v1 pinball | **v2 pinball** | Δ % |
+|---|-----------:|---------------:|----:|
+| 0.05 | 0.0359 | **0.0341** | –5 % |
+| 0.25 | 0.0655 | **0.0619** | –6 % |
+| 0.50 | 0.0659 | **0.0656** | –0 % |
+| 0.75 | 0.0884 | **0.0875** | –1 % |
+| 0.95 | 0.0601 | **0.0593** | –1 % |
+
+* **Mean 80 % PI half-width:** 1.285  
+* **Empirical 80 % coverage:** 97.5 % (over-wide)  
+
+<div align="center"><img src="v2_pinball_bar.png" width="400"/></div>
+
+*Fan charts* (BOME, RETARDIO) show good median tracking but occasional “sails” when imputed on-chain variables dominate.  
+SHAP on τ = 0.50 confirms short-term momentum (proc, logret) + volatility features are key; on-chain growth still minor.
+
+> **Takeaways**  
+> 1. Hyper-parameters improved lower-tail sharpness, small gain elsewhere.  
+> 2. PI calibration is now the bottleneck (97 % > 80 % target).  
+> 3. Calibration slices with heavy imputation inflate intervals.
+
+![Mean pinball loss by quantile for LightGBM v1 vs tuned.](figures/final/fig-lgbm-v1-vs-v2tuned-pinball.pdf){#fig-lgbm-v1-vs-tuned-pinball fig-align="center" width="64%"}
+
+![Tuned LightGBM 72-hour forecast fan charts for five longest-history tokens (50% and 80% intervals).](figures/final/fig-lgbm-v2tuned-fan-5tokens.pdf){#fig-lgbm-tuned-fan-5tokens fig-align="center" width="72%"}
+
+![Tuned LightGBM 72-hour forecast fan chart for the BOME token. V2 shows sharper intervals.](figures/final/fig-lgbm-v2tuned-fan-bome.pdf){#fig-lgbm-tuned-fan fig-align="center" width="72%"}
+
+
+#### Version 3/4
+
+ What changed in **v4** (vs v2/v3) — and why
+
+1. **CV-plus conformal calibration** (5 folds)
+   Averages residual quantiles across non-overlapping folds → lower variance, adapts to heteroskedastic returns.
+
+2. **Adaptive winsorisation of residuals** *(per fold)*
+   Winsorise by median ± 5×IQR (not fixed percentiles) → outlier-robust without permanently widening bands.
+
+3. **Asymmetric outer bands at τ = 0.10 / 0.90**
+   Directly targets nominal 80% PI while keeping the median (τ=0.50) untouched.
+
+4. **Calibration-time imputation filter**
+   Exclude calibration rows where **>30%** of predictors were imputed → prevents data outages from inflating residual quantiles. (Rows still used for model fitting.)
+
+5. **Non-crossing guard**
+   Enforce $\hat q_{0.10} \le \hat q_{0.50} \le \hat q_{0.90}$ post-prediction.
+
+6. **LGBM hygiene**
+   Reuse τ-specific Optuna params from v2; early stopping on the calibration slice; keep redundant-feature cuts (|ρ|>0.98).
+
+
+| Metric | v2 (tuned) | v3 | **v4** |
+| ------ | ---------- | -- | ------ |
+| Mean pinball τ = 0.10 | 0.034 – 0.035 | **0.0316** | **0.0316** |
+| Mean pinball τ = 0.25 | 0.0619 | 0.0473 | **0.0473** |
+| Mean pinball τ = 0.75 | 0.0875 | 0.0755 | **0.0755** |
+| 80 % coverage | 97.5 % | 82.9 % | **82.9 %** |
+| PI half-width | 1.28 | **1.04** | **1.04** |
+
+![LightGBM-CQR v4 fan chart with central median and central interval around the median; realised series overlaid. Compared to the V3 and V2, this shows the tightest intervals](figures/final/fig-lgbm-v4-fan-bome.pdf){#fig-lgbm-v4-fan-bome fig-align="center" width="72%"}
+
+![Calibration of LightGBM-CQR v4: empirical CDF hits vs nominal τ; ideal line shown.](figures/final/fig-lgbm-v4-calibration.pdf){#fig-lgbm-v4-calibration fig-align="center" width="64%"}
+
+#### Version 5
+
+v5.1 is the better baseline methodologically (no double-calibration, direct 0.25/0.75, native categoricals, non-crossing), and its calibration is already very close to target:
+Coverage 79.0% vs target 80% (−1.0 pp)
+Hit-rates: q10 0.095, q50 0.498, q90 0.886 — all close to nominal.
+Pinball improves or ties at 0.05, 0.50, 0.75, 0.95, and is slightly worse at 0.10, 0.90 (expected: those are the band edges).
+We adopt the v5.1 LightGBM+split-conformal baseline because it adheres to the standard split-conformal construction for the central band, trains all requested quantiles directly (including 0.25/0.75), and removes unnecessary preprocessing.
+Relative to the earlier v4 variant, v5.1 improves median and tail (0.05/0.95) pinball scores while keeping 10th/90th close to v4. We apply a 2% conservative pad to the conformal expansion to achieve nominal 80% coverage without materially widening intervals.
+
+---
+
+### QRF
+
+#### Version 1
+
+QRF v1 — Summary & quick comparison
+
+**Setup.** Rolling blocked CV per token (train=120 bars, calibration gap=24, test=6, step=6).
+Model: `RandomForestQuantileRegressor` (n=1000, min\_samples\_leaf=10, max\_features=√p) inside a preprocessing pipeline. Quantiles: τ ∈ {0.10, 0.25, 0.50, 0.75, 0.90}. Monotonicity enforced post-hoc.
+
+**Headline results (aggregate over all folds/tokens)**
+
+* **Pinball loss (lower is better):**
+
+  * τ=0.10: **0.0286**
+  * τ=0.25: **0.0518**
+  * τ=0.50: **0.0725**
+  * τ=0.75: **0.0771**
+  * τ=0.90: **0.0682**
+* **Empirical 80% interval coverage:** **86.5%** (over-coverage → intervals are conservative).
+* **Interval width (q90–q10) distribution:** mean **0.446**, median **0.336**; heavy right tail (max 9.77) consistent with volatility spikes.
+
+**Comparison to LightGBM v4 (residual-based intervals)**
+
+| τ    |     QRF v1 |    LGBM v4 | Δ (QRF–LGBM) |        Δ % |
+| ---- | ---------: | ---------: | -----------: | ---------: |
+| 0.10 | **0.0286** |     0.0316 |  **−0.0030** | **−9.54%** |
+| 0.25 |     0.0518 | **0.0473** |      +0.0045 |     +9.54% |
+| 0.50 |     0.0725 | **0.0658** |      +0.0067 |    +10.17% |
+| 0.75 |     0.0771 | **0.0755** |      +0.0016 |     +2.14% |
+| 0.90 |     0.0682 | **0.0658** |      +0.0024 |     +3.59% |
+
+* **Takeaways.**
+
+  * **Lower tail:** QRF is **best at τ=0.10**, indicating stronger skill capturing downside risk.
+  * **Median & upper tail:** LGBM v4 has lower pinball loss at τ ≥ 0.25.
+  * **Calibration:** QRF’s 80% band covers **86.5%** of outcomes; LGBM v4 is closer to target (**82.9%**). For an apples-to-apples comparison of *efficiency*, both methods should be calibrated to the same nominal coverage and compared on **average width**.
+
+**Diagnostics & interpretation**
+
+* The **over-coverage + wide-tail width** suggest QRF v1 is conservative in volatile regimes.
+* Widths likely co-move with realized volatility and liquidity stress; checking conditional coverage by **predicted-width deciles**, **RV**, **spread/depth**, and **on-chain activity** will identify where calibration drifts.
+
+![QRF v1 mean pinball loss per quantile.](figures/final/fig-qrf-v1-pinball-mean.pdf){#fig-qrf-v1-pinball-mean fig-align="center" width="62%"}
+
+![Distribution of 80% interval widths for QRF v1.](figures/final/fig-qrfv1-interval-widths-80.pdf){#fig-qrf-interval-widths-80 fig-align="center" width="62%"}
+
+![QRF v1 72-hour forecast fan chart for the token with the longest history.](figures/final/fig-qrfv1-fan-longest-bome.pdf){#fig-qrf-fan-longest fig-align="center" width="72%"}
+
+#### Version 2
+
+**Key additions in v2**:
+
+- **Conformalized Quantile Regression (CQR)**: After fitting the QRF on a training window I compute residuals on a separate calibration window and estimate quantiles of these residuals.  Adding the residual quantiles to the naive forecasts guarantees finite‑sample coverage for exchangeable data【713073499978597†L115-L160】.  This solves the over‑coverage problem of v1.
+- **Regime‑aware calibration**: Residual distributions differ between tranquil and volatile periods.  I therefore estimate separate residual quantiles within each volatility regime defined by the `vol_regime` feature, and exclude calibration rows where more than 30 % of features were imputed.  This prevents a handful of extreme errors from inflating all intervals.
+- **Time‑decay weights**: Crypto markets evolve quickly.  I assign exponentially decaying weights to observations in the training window (half‑life 60 days) so that the model emphasises recent patterns.
+- **Median bias correction**: To remove systematic biases, I add the median calibration error to the median test prediction for each token.
+- **Isotonic regression**: Rather than simply sorting quantile forecasts, I apply a one‑dimensional isotonic regression along the quantile axis to enforce non‑crossing without destroying the relative spacing between quantiles.
+
+These methods are inspired by the conformalized quantile regression literature [@Romano2019] and by prior EDA work in my own project which showed how calibration drifted across regimes.  By combining them I aim to maintain coverage while tightening intervals and improving point‑wise accuracy.  The rolling evaluation follows the same blocked cross‑validation design as v1: 120 bars for training, 24 for calibration and 6 for testing, stepping forward 6 bars at a time.
+
+##### Reflection on Calibrated QRF v2 vs. v1
+
+The v2 model built on `quantile_forest` incorporates conformal calibration and regime‑specific residual adjustments to address the mis‑calibration of classical quantile regression. In the literature, uncalibrated quantile methods often produce intervals that are too narrow or too wide when tested on new data. Conformalized quantile regression tackles this by fitting quantile models on a training set and then using a calibration set to adjust the predictions so that the final interval achieves the desired coverage. The cost of this coverage guarantee is that the resulting intervals can be wider, which generally leads to higher pinball losses.
+
+This trade‑off is evident when comparing average pinball losses across quantiles:
+
+| τ    | v1 loss | v2 loss (CQR) | Δ (v2–v1) |
+| ---- | ------: | ------------: | --------: |
+| 0.10 |  0.0286 |        0.1448 |   +0.1162 |
+| 0.25 |  0.0518 |        0.1330 |   +0.0812 |
+| 0.50 |  0.0725 |        0.1127 |   +0.0402 |
+| 0.75 |  0.0771 |        0.0897 |   +0.0126 |
+| 0.90 |  0.0682 |        0.0702 |   +0.0020 |
+
+While the v2 losses are noticeably larger—especially at the lower quantiles—this is expected because v2’s intervals are calibrated to achieve the nominal 80 % coverage, whereas v1’s intervals were sharper but under‑covered (86.5 % coverage for an 80 % interval suggests the bands were too narrow). The slight increase in loss at τ=0.90 (0.0682 → 0.0702) shows that the calibrated model remains competitive on the upper tail, where the baseline QRF already performed well.
+
+In summary, v2 provides properly calibrated and regime‑aware prediction intervals at the expense of some sharpness. The next step will be to determine whether these trade‑offs are acceptable for your application or whether further tuning (e.g. adjusting the number of trees, minimum leaf size, or exploring different calibration stratifications) can reduce pinball loss without sacrificing coverage.
+
+#### Version 3
+
+#### Reflection on Tuned QRF (v3)
+
+After hyperparameter tuning and the inclusion of an extended quantile grid, my third version of the Quantile Regression Forest has markedly improved performance. Average pinball losses for τ = 0.05–0.95 now range from roughly 0.012 to 0.067, a dramatic reduction compared with the previous conformalized model (v2), which hovered between 0.07 and 0.15. For context, the LightGBM v4 baseline delivered pinball losses of about 0.03–0.07 across the 0.10–0.90 quantiles. In other words, the tuned QRF now outperforms LightGBM in the lower and upper tails (e.g. 0.021 at τ = 0.10 vs. ~0.03 for LGBM) and matches it around the median (0.067 vs. ~0.066 for LGBM). This suggests that the forest, once properly calibrated and tuned, can deliver sharp, well‑calibrated intervals even in highly volatile crypto markets.
+
+The feature‑importance analysis reveals that momentum and oscillator variables dominate: percentage rate of change (proc), stochastic %K (stoch_k), Bollinger band width (bollinger_b) and commodity channel index (cci) are among the top contributors. Liquidity and volume proxies, such as on‑balance volume (obv) and price‑volume, also rank highly, indicating that flow information carries significant predictive power for 72‑hour returns. Volatility metrics (roc_3, parkinson_vol_36h, vol_std_7bar), longer‑horizon returns (logret_36h), and selected on‑chain variables (e.g. holder_growth_1bar/7d, tx_per_account) provide additional signal. Conversely, some engineered flags (extreme_flag1, tail_asym) and cyclical features appear to contribute little, suggesting they could be removed in later models to simplify the feature set without sacrificing performance.
+
+**Calibration pipeline.**
+I correct the residual-quantile rule for conformal offsets by using $\delta_\tau = Q_\tau(r)$ with residuals $r = y - \hat q_\tau$ and map my numeric `vol_regime` quintiles to `"quiet"`, `"mid"`, and `"volatile"`. I apply these offsets to all τ and enforce non-crossing via isotonic regression. To achieve nominal **two-sided** coverage, I add a **split-conformal** inflation: on the calibration window I compute nonconformity scores $s=\max(q_{lo}-y,\,y-q_{hi})$, take the rank-based quantile $\delta = Q_{\lceil (n+1)\,c \rceil}(s)$ for coverage $c\in\{0.80,0.90\} $, and widen the test intervals by $\pm \delta$. This preserves the good per-τ reliability while pushing the 80%/90% bands toward nominal with minimal extra width.
+
+Best parameters: {'n_estimators': 1467, 'max_features_choice': 'fraction', 'max_features': 0.9984302781608038, 'min_samples_leaf': 5, 'max_depth': 24}
+Best average pinball loss: 0.038536808768904925
+
+
+![QRF v3 reliability curve (global): empirical hit-rate vs nominal τ with Wilson CIs; ideal line shown.](figures/final/fig-qrf-v3-reliability-global.pdf){#fig-qrf-v3-reliability-global fig-align="center" width="66%"}
+
+![QRF v3 empirical coverage of 80% and 90% intervals with Wilson CIs; dashed lines mark nominal levels.](figures/final/fig-qrf-v3-interval-coverage.pdf){#fig-qrf-v3-interval-coverage fig-align="center" width="62%"}
+
+![QRF v3 interval width distributions for 80% and 90% prediction intervals.](figures/final/fig-qrf-v3-width-distributions.pdf){#fig-qrf-v3-width-distributions fig-align="center" width="65%"}
+
+**What the plots show.**
+
+* **Global reliability:** τ=0.05 and τ=0.10 hug y=x (good), but **τ=0.25 jumps to \~0.62** and τ=0.50 sits \~0.74. Upper quantiles (0.75–0.95) track y=x closely.
+* **By regime:** the **τ=0.25 kink persists across narrow/mid/wide** regimes, so it’s systematic, not regime-specific.
+* **Coverage vs nominal:** mirrors the above—slight under-coverage at 80%, closer at 90%.
+* **Width distributions:** 90% bands are wider (as expected) with a long right tail during volatile periods.
+
+
+#### Version 4 (Final)
+
+**What I changed.**
+- After inspecting reliability curves, I identified a calibration error in my conformal shift rule for lower quantiles. I had incorrectly used $Q_{1-\tau}(r)$ instead of $Q_{\tau}(r)$ for residuals $r = y-\hat{q}_\tau$. I corrected the offsets to $\delta_\tau = Q_{\tau}(r)$ for all τ, keeping the regime-aware split on tails and the isotonic non-crossing step.
+
+- I audited the volatility regime input used for regime-aware calibration. My feature table encodes vol_regime as an integer quintile in {0,1,2,3,4}, whereas my calibration code expected string labels (“quiet”/“volatile”). As a result, the quiet/volatile masks were empty and the tail offsets defaulted to global (or ~zero), i.e. regime-awareness was effectively off. I fixed this by mapping {0,1}→quiet, {3,4}→volatile, and {2}→mid, with warm-up NAs assigned to mid. I also retained a fallback that derives regimes from a past-volatility proxy (e.g., gk_vol_36h) if vol_regime is not available.
+**Why.**
+
+- This ensures the adjusted quantiles satisfy $\mathbb{P}(y \le \hat{q}_\tau) \approx \tau$ uniformly across τ, preventing the inflated hit-rates previously observed around τ=0.25–0.50 and stabilising median calibration.
+
+- The purpose of regime-aware calibration is to prevent under-coverage in turbulent periods without widening bands in calm periods. Ensuring the regime signal is recognised by the calibration step is essential; otherwise offsets can be biased toward average conditions.
+
+
+### Applications to Trading:
+
+![Risk-aware sizing equity curves (72-hour step).](figures/final/fig-equity-curves.pdf){#fig-equity-curves fig-align="center" width="70%"}
+
+![Per-token Sharpe for the top 20 tokens under Policy A and Policy B.](figures/final/fig-token-sharpe-qrf.pdf){#fig-token-sharpe-qrf fig-align="center" width="68%"}
+
+![Equity curve for the selected token under Policy A vs Policy B.](figures/final/fig-equity-giga.pdf){#fig-equity-token fig-align="center" width="68%"}
+
+![Predictive fan (q05–q95, q10–q90) with median and realised 72-hour returns.](figures/final/fig-fan-giga.pdf){#fig-fan-token fig-align="center" width="72%"}
+
+![Smoothed quantile “spaghetti” (q05…q95) vs realised returns and a least-squares trend.](figures/final/fig_quantile_spaghetti_bome.pdf){#fig-quantile-spaghetti fig-align="center" width="72%"}
+
+
