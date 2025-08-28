@@ -29,12 +29,9 @@
 
 ![Distribution of the 72-hour log return target variable, pooled across all tokens. The distribution exhibits a sharp peak and significantly heavier tails than a comparable normal distribution, justifying the use of quantile-based models.](figures/raw/fig-3-1.pdf){#fig-return-dist fig-align="center" width="65%"}
 
-Fig 1.1 — OHLCV Missingness: before vs after cleaning (@fig-3-1-ohlcv-missingness):
 
 ![Post-cleaning reduces missingness across OHLCV fields; values shown as % of rows.](figures/final/fig-3-1-ohlcv-missingness.pdf){#fig-3-1-ohlcv-missingness fig-align="center" width="62%"}
 
-
-Fig 1.2 — Missing holder_count by token (@fig-3-2-holder-missingness):
 
 ![Per-token missingness for holder\_count after OHLCV cleaning; shown as percentages.](figures/final/fig-3-2-holder-missingness.pdf){#fig-3-2-holder-missingness fig-align="center" width="62%"}}
 
@@ -236,7 +233,7 @@ Model: `RandomForestQuantileRegressor` (n=1000, min\_samples\_leaf=10, max\_feat
 
 **Key additions in v2**:
 
-- **Conformalized Quantile Regression (CQR)**: After fitting the QRF on a training window I compute residuals on a separate calibration window and estimate quantiles of these residuals.  Adding the residual quantiles to the naive forecasts guarantees finite‑sample coverage for exchangeable data【713073499978597†L115-L160】.  This solves the over‑coverage problem of v1.
+- **Conformalized Quantile Regression (CQR)**: After fitting the QRF on a training window I compute residuals on a separate calibration window and estimate quantiles of these residuals.  Adding the residual quantiles to the naive forecasts guarantees finite‑sample coverage for exchangeable data.  This solves the over‑coverage problem of v1.
 - **Regime‑aware calibration**: Residual distributions differ between tranquil and volatile periods.  I therefore estimate separate residual quantiles within each volatility regime defined by the `vol_regime` feature, and exclude calibration rows where more than 30 % of features were imputed.  This prevents a handful of extreme errors from inflating all intervals.
 - **Time‑decay weights**: Crypto markets evolve quickly.  I assign exponentially decaying weights to observations in the training window (half‑life 60 days) so that the model emphasises recent patterns.
 - **Median bias correction**: To remove systematic biases, I add the median calibration error to the median test prediction for each token.

@@ -2,8 +2,6 @@
 
 This dissertation set out to determine if a adapted Quantile Regression Forest (QRF) could produce superior 72-hour return intervals for volatile mid-cap Solana tokens. The evidence gathered confirms this hypothesis, demonstrating that the proposed QRF pipeline is not only statistically superior to established baselines but that its predictive advantages translate into demonstrable economic value. This section synthesises these findings by systematically addressing the research questions, explaining the methodological drivers of the model's success, and considering the study's implications, limitations, and avenues for future work.
 
----
-
 ## Addressing the research questions
 
 **RQ1 (Accuracy).** Under the blocked rolling evaluation, the adapted QRF attains the lowest mean pinball loss in the lower quantiles τ∈{0.05, 0.10, 0.25}, remains competitive at the median, and tracks the upper tails closely (@fig-pinball-by-quantile-by-model). Pairwise Diebold–Mariano tests (HAC/HLN, FDR q≤0.10) corroborate these differences: QRF beats LightGBM on 10/19 tokens at τ=0.10 and 12/19 at τ=0.25, and 16/19 at τ=0.95; around τ=0.50 differences are small and rarely significant. These patterns persist across volatility regimes and tokens, supporting QRF’s superior distributional accuracy.
@@ -32,7 +30,7 @@ Data incompleteness (intermittent on-chain/market feeds), survivorship/listing b
 
 ## Practical value and deployment
 
-Calibrated QRF intervals are directly actionable. Risk-scaled sizing de-gears when uncertainty widens and scales when intervals are directional, improving Sharpe and drawdown. Beyond trading, the lower-tail quantile serves as a forward-looking Value-at-Risk proxy; interval width provides a dynamic risk budget; and extreme misses beyond q₀.₀₅/q₀.₉₅ can trigger regime-shift alerts. A pragmatic rollout is: (i) shadow mode with coverage drift alarms, (ii) limited-risk deployment with caps/kill-switches, (iii) K-fold cross-conformal recalibration, (iv) integration of execution models (venue mix, inventory/borrow, impact).
+Calibrated QRF intervals are directly actionable. Risk-scaled sizing de-gears when uncertainty widens and scales when intervals are directional, improving Sharpe and drawdown. Beyond trading, the lower-tail quantile serves as a forward-looking Value-at-Risk proxy; interval width provides a dynamic risk budget; and extreme misses beyond q05/q90 can trigger regime-shift alerts. A pragmatic rollout is: (i) shadow mode with coverage drift alarms, (ii) limited-risk deployment with caps/kill-switches, (iii) K-fold cross-conformal recalibration, (iv) integration of execution models (venue mix, inventory/borrow, impact).
 
 ## Synthesis and future directions
 

@@ -50,11 +50,11 @@ We report **pinball loss** by $\tau$, **reliability** (empirical $\widehat F_\ta
 
 | Variant    | Estimator           | Non-crossing | Calibration | Pinball (τ=.10 / .50 / .90) |
 |:-----------|:--------------------|:------------:|:-----------:|:----------------------------|
-| **LQR v1** | statsmodels QuantReg |      ✗       |      ✗      | — / **8.0238** / —          |
-| **LQR v2** | statsmodels QuantReg |      ✓*      |      ✗      | **0.0400** / **0.0640** / **0.3850** |
+| **LQR v1** | statsmodels QuantReg |      O       |      X      | — / **8.0238** / —          |
+| **LQR v2** | statsmodels QuantReg |      X      |      X      | **0.0400** / **0.0640** / **0.3850** |
 
 
-**Why this baseline.** LQR provides a transparent parametric benchmark. In heavy-tailed, skewed crypto returns, its characteristic tail mis-calibration (see `@fig-lqr-calibration` in Appendix 2) motivates the flexible, non-parametric models.
+**Why this baseline.** LQR provides a transparent parametric benchmark. In heavy-tailed, skewed crypto returns, its characteristic tail mis-calibration (see @fig-lqr-calibration in Appendix 2) motivates the flexible, non-parametric models.
 
 
 ## Gradient-boosted trees with quantile loss (LightGBM baseline) {#sec-lgbm}
@@ -112,10 +112,10 @@ We evaluate via rolling-window cross-validation (train 120 bars, calibrate 24, t
 
 | Variant                     | Time-decay | Non-crossing | Calibration                                                | τ=0.10 pinball | τ=0.50 pinball | τ=0.90 pinball |
 |----------------------------|:----------:|:------------:|------------------------------------------------------------|---------------:|---------------:|---------------:|
-| **QRF-v1 (base)**          | ✗          | sort         | none                                                       | 0.0286         | 0.0725         | 0.0682         |
-| **QRF-v2 (CQR + regime)**  | ✓          | isotonic     | regime-aware residual quantile + split-conformal           | 0.0224         | 0.0610         | 0.0660         |
-| **QRF-v3 (tuned)**         | ✓          | isotonic     | same as v2                                                 | ≈ 0.0229       | ≈ 0.0653       | ≈ 0.0670       |
-| **QRF-v4 (final)**         | ✓          | isotonic     | regime-aware residual quantile + split-conformal (CV-plus) | 0.0224         | 0.0610         | 0.0660         |
+| **QRF-v1 (base)**          | O          | sort         | none                                                       | 0.0286         | 0.0725         | 0.0682         |
+| **QRF-v2 (CQR + regime)**  | X          | isotonic     | regime-aware residual quantile + split-conformal           | 0.0224         | 0.0610         | 0.0660         |
+| **QRF-v3 (tuned)**         | X          | isotonic     | same as v2                                                 | ≈ 0.0229       | ≈ 0.0653       | ≈ 0.0670       |
+| **QRF-v4 (final)**         | X          | isotonic     | regime-aware residual quantile + split-conformal (CV-plus) | 0.0224         | 0.0610         | 0.0660         |
 
 
 **Final specification and rationale.**
@@ -125,7 +125,7 @@ We adopt the tuned, time-decay QRF (v4) as the core model. It combines (i) isoto
 
 ## Validation, metrics, and statistical tests
 
-This section formalises the criteria used to compare models. Definitions are in Appendix 2.
+This section formalises the criteria used to compare models. Definitions and notations are in Appendix 2.
 
 #### Losses and calibration metrics
 
@@ -135,22 +135,22 @@ This section formalises the criteria used to compare models. Definitions are in 
 
 **Quantile reliability / calibration curves.** We plot empirical hit-rates $\widehat F_\tau$ against nominal $\tau$; the ideal line is 45°.
 
-**Proper scoring rule.** We include the **interval score** (Gneiting–Raftery, 2007) for completeness; CRPS links are noted in the appendix.
+**Proper scoring rule.** We include the **interval score** (Gneiting–Raftery, 2007) for completeness.
 
 *See Appendix 2 table 3 for definitions*
 
 #### Statistical comparisons
 
-Pairwise comparisons use **Diebold–Mariano** tests on pinball-loss differentials with **Newey–West** HAC variance and the **Harvey–Leybourne–Newbold** small-sample correction. ([@newey1987; @Harvey1997])
+Pairwise comparisons use **Diebold–Mariano** tests on pinball-loss differentials with **Newey–West** HAC variance and the **Harvey–Leybourne–Newbold** small-sample correction. ([Newey1987] [@Harvey1997])
 
-We further build on this test using the **Model Confidence Set** by [@hansen2011].
+We further build on this test using the **Model Confidence Set** by [@Hansen2011].
 *See Appendix 2 table 3 for definitions*
 
 #### Additional analyses: regimes, conditional coverage, and efficiency
 
 The global scores above average over heterogeneous market states and tokens. To better understand the adaptivity and economic value of interval forecasts, we perform several sliced analyses on the Test forecasts:
 
-- **Regime analysis.** We stratify Test observations into **quiet**, **mid**, and **volatile** windows based on realised-volatility terciles. Within each regime we recompute empirical coverage, mean width, and reliability curves. This assesses whether models widen bands appropriately in turbulent markets and is visualised by regime-specific calibration curves (see Results Fig. `@fig-reliability-regime`).
+- **Regime analysis.** We stratify Test observations into **quiet**, **mid**, and **volatile** windows based on realised-volatility terciles. Within each regime we recompute empirical coverage, mean width, and reliability curves. This assesses whether models widen bands appropriately in turbulent markets and is visualised by regime-specific calibration curves (see Results `@fig-reliability-regime`).
 
 - **Conditional coverage by predicted width.** For each model and central interval, we sort forecasts into deciles of predicted band width. We then compute hit-rates within each decile to test whether wider intervals indeed cover more outcomes. A monotonically increasing hit-rate confirms that the model’s widths are informative about uncertainty. The decile table and associated plot are reported in the Results (Fig. `@fig-cond-cov-width`; Table `@tbl-condcov-width`).
 

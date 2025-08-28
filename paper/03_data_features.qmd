@@ -58,7 +58,7 @@ The heavy-tailed nature of the target is further illustrated in **Figure 4.1**, 
 
 Furthermore, the properties of this distribution are not static. Analysis of the underlying 12-hour returns reveals that the shape of the distribution is highly conditional on the broader market environment. By defining macro-regimes based on the quartiles of SOL's 12-hour return, it becomes evident that the conditional distribution of token returns shifts systematically. As shown in **Figure 4.2**, "Bull" regimes are associated with positive skew and a fatter right tail, whereas "Bear" regimes exhibit heavier left tails, signalling increased downside risk. This empirical finding of regime-dependence is critical, as it justifies the need for a *conditional* forecasting model that can adapt its predicted quantiles based on contextual features.
 
-![Conditional distribution of 12-hour token returns, faceted by the SOL macro-regime. The shape, skew, and tail behaviour of the returns change significantly depending on the broader market context.](figures/final/fig-eda-regime-return-dist.pdf){#fig-regime-dist fig-align="center" fig-pos="H" width="70%"}
+![Conditional distribution of 12-hour token returns, faceted by the SOL macro-regime. The shape, skew, and tail behaviour of the returns change significantly depending on the broader market context.](figures/raw/fig-3-2.pdf){#fig-regime-dist fig-align="center" fig-pos="H" width="70%"}
 
 Finally, it is important to note that this construction results in an overlapping target variable. A new 72-hour forecast is generated every 12 hours, meaning that the forecast periods overlap significantly. This has direct implications for the evaluation methodology, as the resulting forecast errors will be serially correlated by construction. As detailed in the literature review and methodology chapters, this requires the use of specific techniques, such as blocked cross-validation and HAC-robust statistical tests, to ensure valid inference.
 
@@ -70,7 +70,7 @@ Before any features could be engineered, the raw, multi-source panel dataset und
 
 The nature of this missingness was not uniform. As illustrated by the heatmap in **Figure 4.3**, the data gaps were highly structured. Some tokens (e.g., `MEW`, `ZEREBRO`) had clean data but only after a late start date, while others exhibited intermittent, patchy gaps throughout their history. This heterogeneity necessitated a multi-step strategy rather than a single, one-size-fits-all approach.
 
-![Heatmap of OHLCV data presence across the token universe over time (Green = Present, Red = Missing). The block-like structure for some tokens indicates late listings, while sporadic red patches show intermittent data gaps, motivating a hybrid cleaning strategy.](figures/final/fig-3-6-ohlcv-missingness-heatmap.pdf){#fig-ohlcv-heat fig-align="center" width="85%"}
+![Heatmap of OHLCV data presence across the token universe over time (Green = Present, Red = Missing). The block-like structure for some tokens indicates late listings, while sporadic red patches show intermittent data gaps, motivating a hybrid cleaning strategy.](figures/raw/fig-3-4.pdf){#fig-ohlcv-heat fig-align="center" width="85%"}
 
 #### Temporal Alignment and Clipping 
 To ensure temporal consistency, each time series was first clipped to begin only from its first fully valid OHLCV observation. This step, detailed in the strategy summary in Appendix 1 **\@sec-cleaning-strategy**, removes spurious data from pre-launch or illiquid initial listing periods, which could otherwise contaminate the analysis. Tokens with insufficient history after this clipping process (e.g., `$COLLAT`) were dropped from the universe entirely.
@@ -95,7 +95,7 @@ Second, the relationship between returns and subsequent volatility is asymmetric
 
 #### Feature Redundancy and Collinearity
 
-An analysis of the correlation structure between 18 core features was conducted to identify potential multicollinearity, which can destabilise tree-based ensemble models. As shown in the Pearson correlation matrix in **Figure 3.5**, several feature pairs exhibit extremely high linear relationships. The most significant correlations were observed between:
+An analysis of the correlation structure between 18 core features was conducted to identify potential multicollinearity, which can destabilise tree-based ensemble models. As shown in the Pearson correlation matrix in **Figure 4.5**, several feature pairs exhibit extremely high linear relationships. The most significant correlations were observed between:
 
   * `token_close_usd` and `token_volume_usd` ($r \\approx 0.999$)
   * `btc_close_usd` and `tvl_usd` ($r \\approx 0.94$)
@@ -107,11 +107,11 @@ This finding is critical. It implies that highly collinear inputs can inflate va
 
 #### The Empirical Failure of Gaussian Assumptions
 
-To provide a definitive, data-driven justification for model selection, a baseline experiment was conducted to compare a naive Gaussian interval forecast (defined as $\\pm z \\cdot \\sigma$, using realised volatility) against a simple Quantile Regression Forest. The results, shown in **Figure 3.6**, are stark.
+To provide a definitive, data-driven justification for model selection, a baseline experiment was conducted to compare a naive Gaussian interval forecast (defined as $\\pmz\\cdot\\sigma$, using realised volatility) against a simple Quantile Regression Forest. The results, shown in **Figure 4.6**, are stark.
 
-The naive Gaussian intervals systematically under-cover the true outcomes across all nominal levels; for example, a nominal 80% interval achieves only \~70% empirical coverage. In contrast, even a basic QRF model tracks the ideal 45-degree line far more closely, demonstrating superior calibration by adapting to the true fat-tailed and skewed nature of the returns.
+The naive Gaussian intervals systematically under-cover the true outcomes across all nominal levels; for example, a nominal 80% interval achieves only \~70% empirical coverage. In contrast, even a basic QRF model tracks the ideal 45-degree line far more closely, demonstrating superior calibration by adapting to the true fat-tailed and skewed nature of the returns. *See Appendix 5 for links to full EDA Notebooks*
 
-Crucially, this improvement in calibration does not come at the cost of precision. At a nominal 80% coverage level, the QRF intervals were also significantly sharper, with an average width of 0.1682 compared to 0.2038 for the naive method. This dual failure of the Gaussian approach—in both calibration and sharpness—provides the ultimate empirical justification for rejecting simple parametric assumptions and adopting a non-parametric methodology like QRF for this dataset.
+Crucially, this improvement in calibration does not come at the cost of precision. At a nominal 80% coverage level, the QRF intervals were also significantly sharper, with an average width of 0.1682 compared to 0.2038 for the naive method. This dual failure of the Gaussian approach—in both calibration and sharpness, provides the ultimate empirical justification for rejecting simple parametric assumptions and adopting a non-parametric methodology like QRF for this dataset.
 
 ![Calibration curve comparing the empirical vs. nominal coverage of naive Gaussian intervals and QRF intervals. The QRF's proximity to the ideal line demonstrates its superior ability to model the data's true distribution.](figures/final/fig-eda-calibration-comparison.pdf){#fig-calibration-curve fig-align="center" width="65%"}
 
@@ -119,7 +119,7 @@ Crucially, this improvement in calibration does not come at the cost of precisio
 
 ## Feature Engineering and Selection
 
-Following the data preparation and exploratory analysis, an extensive feature set was engineered. This process was guided by two main principles: first, all predictors must be strictly causal, using only information available at or before time $t$; second, the feature set should be designed to capture the specific statistical properties—such as volatility clustering, asymmetry, and regime-dependence—identified in the EDA.
+Following the data preparation and exploratory analysis, an extensive feature set was engineered. This process was guided by two main principles: first, all predictors must be strictly causal, using only information available at or before time $t$; second, the feature set should be designed to capture the specific statistical properties, such as volatility clustering, asymmetry, and regime-dependence, as identified in the EDA.
 
 #### Feature Construction by Family
 
@@ -133,7 +133,7 @@ The engineered set focuses on signals that respond to the unique dynamics of cry
 4.  **On-Chain Activity:** To capture fundamental network health, features such as the growth rate of unique wallets and the ratio of new accounts to total holders were included, consistent with the on-chain data availability constraints.
 5.  **Market Context:** To model the cross-asset spillovers identified in the literature, features such as the 12h returns for SOL, BTC, and ETH, as well as the rolling 36h correlation of each token to these majors, were created. This explicitly allows the model to learn a dynamic, implicit beta to the broader market.
 
-A complete feature dictionary, including formulas and window lengths, is provided in Appendix 1.
+*A complete feature dictionary, including formulas and window lengths, is provided in Appendix 1.*
 
 #### Redundancy Control and Pruning
 The initial engineering process generated over 90 candidate features. To create a final feature set that was both predictive and robust, a systematic, three-stage pruning pipeline was implemented:

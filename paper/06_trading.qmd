@@ -48,7 +48,7 @@ and portfolio P\&L sums across tokens subject to the gross cap. No look-ahead: p
 
 ## Backtest design
 
-- **Universe and horizon.** Same Solana token set as in §3–§5, tradable on the 72h grid.
+- **Universe and horizon.** Same Solana token set, tradable on the 72h grid.
 - **Signal.** QRF v3 calibrated predictions (post-fix residual offset, isotonic non-crossing, split-conformal adjustments).
 - **Cash and borrowing.** Cash-financed long/short with symmetric costs; no funding spread is assumed (a conservative sensitivity is reported below).
 - **Execution.** Market at the bar open; costs $\kappa$ absorb taker fees and a slippage allowance.

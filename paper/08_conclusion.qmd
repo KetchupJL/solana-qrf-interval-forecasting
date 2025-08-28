@@ -1,6 +1,6 @@
 ## Conclusion {#sec-conclusion}
 
-This dissertation addresses the challenge of risk management in volatile cryptocurrency markets by shifting the focus from traditional point forecasts to robust interval forecasting. It evaluates whether an adapted Quantile Regression Forest (QRF) can produce superior 72-hour return intervals for a universe of mid-cap tokens within the Solana ecosystem, using data aggregated in 12-hour bars[cite: 194].
+This dissertation addresses the challenge of risk management in volatile cryptocurrency markets by shifting the focus from traditional point forecasts to robust interval forecasting. It evaluates whether an adapted Quantile Regression Forest (QRF) can produce superior 72-hour return intervals for a universe of mid-cap tokens within the Solana ecosystem, using data aggregated in 12-hour bars.
 
 The proposed QRF, which incorporates time-decay weighting and a multi-stage, regime-aware calibration pipeline, is benchmarked against Linear Quantile Regression (LQR) and a LightGBM-Quantile model. Models are evaluated under a rigorous rolling cross-validation design (120/24/6 bars for train/calibrate/test) using key metrics of pinball loss, interval coverage, and width.
 

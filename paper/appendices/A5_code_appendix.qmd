@@ -226,7 +226,8 @@ qrf_cal = pd.DataFrame(results)
 
 ### Feature Engineering
 
-See the full notebooks here: 
+See the full notebooks here:
+
 - [1 Setting up the full spectrum of Financial Features](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Feature%20Engineering/01_features.ipynb){target="_blank" rel="noopener"}
 - [2 Building a more robust Feature Engineering Pipeline](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Feature%20Engineering/02_features_final.ipynb){target="_blank" rel="noopener"}
 - [3 Feature Pruning](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Feature%20Engineering/03_feature_pruning.ipynb){target="_blank" rel="noopener"}
@@ -391,6 +392,7 @@ predictors_stage3 = gain_pct[gain_pct >= threshold].index.tolist()
 ## Model Building
 
 See the full notebooks here: 
+
 - [LQR V1](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/01_baseline_LQR.ipynb){target="_blank" rel="noopener"}
 - [LQR Final Model](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/012_baseline_QLR.ipynb){target="_blank" rel="noopener"}
 - [LightGBM V1](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/02_baseline_lightgbm.ipynb){target="_blank" rel="noopener"}
@@ -2484,6 +2486,7 @@ robust
 ## Model Analysis, Testing and Application to Trading
 
 See the full notebooks here: 
+
 - [Comparison of Models, using Pinball loss, DM test and more.](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/03_QRF_v3_analysis.ipynb){target="_blank" rel="noopener"}
 - [Validation Tests on QRF, addition tests/analysis, Risk aware sizing backtest and Quantile Prediction Figures](https://github.com/KetchupJL/solana-qrf-interval-forecasting/blob/main/notebooks/Model%20Building/03_QRF_v4_dev.ipynb){target="_blank" rel="noopener"}
 

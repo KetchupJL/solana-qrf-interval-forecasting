@@ -38,7 +38,7 @@ QRF’s non-parametric trees capture non-linear interactions that matter most in
 
 **Global calibration and reliability**
 
-Figure @fig-qrf-v3-reliability-global plots the reliability curve — the empirical hit-rate $\Pr\{y\le \hat q_\tau\}$ against the nominal $\tau$ with Wilson 95% CIs. After correcting the residual-offset rule (now using $\delta_\tau = Q_\tau(r_\tau)$, not $Q_{1-\tau}$, for residuals $r_\tau = y - \hat q_\tau$), the QRF curve lies close to the 45° line across the grid, with only a modest dip around $\tau\approx0.8$ that mirrors the slightly low 80% interval coverage (below).
+@fig-qrf-v3-reliability-global plots the reliability curve — the empirical hit-rate $\Pr\{y\le \hat q_\tau\}$ against the nominal $\tau$ with Wilson 95% CIs. After correcting the residual-offset rule (now using $\delta_\tau = Q_\tau(r_\tau)$, not $Q_{1-\tau}$, for residuals $r_\tau = y - \hat q_\tau$), the QRF curve lies close to the 45° line across the grid, with only a modest dip around $\tau\approx0.8$ that mirrors the slightly low 80% interval coverage (below).
 
 **Coverage and width (pooled)**
 @tbl-cov-width summarises pooled coverage at 80% and 90% together with coverage error (actual − target). QRF attains near-nominal 90% coverage and slightly low 80% coverage; LightGBM over-covers, and LQR under-covers markedly.
@@ -62,7 +62,7 @@ Table: Coverage and sharpness at central 80% and 90% intervals (pooled). {#tbl-c
 * **LightGBM:** $0.79\!\!-\!0.80$ at 80%; $0.98\!\!-\!0.99$ at 90% (+8–9 p.p. over-coverage), consistent with conservative widths.
 * **LQR:** $0.51$ at 80% and $0.62$ at 90% (−29 p.p. and −28 p.p.), indicating intervals that are too narrow.
 
-@fig-widths shows the width distributions for the 80% and 90% intervals. For a given empirical coverage, QRF’s bands are materially tighter than LightGBM’s (shorter right tails), reflecting a better sharpness–coverage trade-off. (A model-level efficiency scatter—coverage vs mean width—appears)
+@fig-qrf-v3-width-distributions shows the width distributions for the 80% and 90% intervals. For a given empirical coverage, QRF’s bands are materially tighter than LightGBM’s (shorter right tails), reflecting a better sharpness–coverage trade-off. (A model-level efficiency scatter—coverage vs mean width—appears)
 
 **State dependence (quiet / mid / volatile)**
 
