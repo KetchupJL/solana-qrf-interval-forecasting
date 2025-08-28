@@ -1,47 +1,47 @@
 # Introduction
 
-## The Economic Challenge of Forecasting in Emerging Ecosystems
+#### The Economic Challenge of Forecasting in Emerging Ecosystems
 
 Extreme volatility and non-normal return distributions are defining characteristics of cryptocurrency markets, rendering traditional point forecasts insufficient for robust risk management [@Gkillas2018]. This challenge is particularly acute for mid-capitalisation tokens within emerging ecosystems like Solana. Unlike large-cap assets, these tokens are subject to rapid narrative shifts and idiosyncratic on-chain dynamics; yet unlike micro-caps, they are liquid enough to attract significant capital. For participants in this space, standard risk models often fail during periods of high network activity or ecosystem-wide events, creating a clear demand for forecasting tools that can dynamically price tail risk.
 
 This dissertation argues that the primary objective must shift from point prediction to interval forecasting. By generating calibrated prediction intervals through conditional quantiles, we can capture the asymmetry and tail risk inherent in these volatile assets. A well-calibrated lower quantile serves as a dynamic, forward-looking analogue to Value-at-Risk (VaR) [@Engle2004], while the upper quantile informs on potential upside, providing a comprehensive basis for sophisticated risk management and tactical decision-making.
 
-## A Principled Approach: Quantile Regression
+##### A Principled Approach: Quantile Regression
 
 To construct reliable prediction intervals, we adopt the framework of quantile regression [@Koenker1978], evaluated with the pinball loss—a strictly proper score for quantiles. We use it throughout for model training and comparison, and provide the formal definition in the **Methodology** and Appendix 2.
 
 This allows models to be evaluated on two critical properties: calibration (does an 80% interval contain the outcome 80% of the time?) and sharpness (are the intervals as narrow as possible while maintaining calibration?) [@Gneiting2007]. These properties are paramount in crypto markets, where accurately quantifying both risk and opportunity is the basis of effective strategy.
 
-## The State of the Art and the Research Gap
+##### The State of the Art and the Research Gap
 
 The literature on cryptocurrency forecasting has largely bifurcated. One branch applies econometric models like GARCH, which excel at modelling volatility but are constrained by parametric assumptions [@Bollerslev1986]. The other employs machine learning, but predominantly for point forecasting of price or direction [@Mcnally2018]. While some studies have applied quantile regression to major crypto-assets [@Catania2019], they have typically relied on simpler linear models or have not fully leveraged the rich feature set available from on-chain data. Furthermore, the critical step of post-hoc calibration to ensure nominal coverage guarantees, especially for non-parametric methods, is often overlooked.
 
 In doing so, the study prioritises distributional accuracy over point prediction, applies a non-parametric approach to a mid-cap Solana universe, and integrates market microstructure and on-chain features—choices that, as later results show, yield sharper, better-calibrated intervals than linear and boosted baselines after post-hoc calibration.
 
-## Problem Formulation: The Solana Ecosystem
+#### Problem Formulation: The Solana Ecosystem
 
 This study focuses on forecasting 72-hour log-returns for a universe of mid-cap tokens within the Solana ecosystem, using data aggregated in 12-hour intervals. The asset universe comprises tokens with a market capitalisation exceeding greater than $30 million and listing age greater than 6 months, ensuring a focus on liquid assets. The forecasting model is built upon a feature set designed to capture the multi-faceted drivers of returns, spanning five domains: (i) momentum, (ii) volatility, (iii) market microstructure, (iv) on-chain activity, and (v) cross-asset context.
 
-## Methodology and Contributions
+#### Methodology and Contributions
 
-The central hypothesis is that the non-linear, interaction-heavy nature of this market demands a non-parametric approach. We propose an adapted Quantile Regression Forests (QRF) model [@Meinshausen2006]. QRF was selected as the primary model for several reasons. Firstly, its ensemble nature provides inherent robustness to the noisy predictors common in high-dimensional financial feature sets. Secondly, unlike gradient boosting, QRF's independent tree construction can be less prone to overfitting in non-stationary environments. Finally, its method of estimating quantiles from the full distribution of training samples in terminal nodes is a more direct and empirically stable approach than methods requiring separate models for each quantile. To tailor the model to a non‑stationary financial time series, we apply: (i) time‑decay sample weights to prioritise recent data; (ii) non‑crossing enforcement via isotonic rearrangement across τ; and (iii) post‑hoc calibration using regime‑aware residual‑quantile offsets, with split‑conformal bands as a robustness check. These adaptations are detailed in the Methodology 4.3–4 and Appendix 2.
+The central hypothesis is that the non-linear, interaction-heavy nature of this market demands a non-parametric approach. We propose an adapted Quantile Regression Forests (QRF) model [@Meinshausen2006]. QRF was selected as the primary model for several reasons. Firstly, its ensemble nature provides inherent robustness to the noisy predictors common in high-dimensional financial feature sets. Secondly, unlike gradient boosting, QRF's independent tree construction can be less prone to overfitting in non-stationary environments. Finally, its method of estimating quantiles from the full distribution of training samples in terminal nodes is a more direct and empirically stable approach than methods requiring separate models for each quantile. To tailor the model to a non‑stationary financial time series, we apply: (i) time‑decay sample weights to prioritise recent data; (ii) non‑crossing enforcement via isotonic rearrangement across τ; and (iii) post‑hoc calibration using regime‑aware residual‑quantile offsets, with split‑conformal bands as a robustness check. These adaptations are detailed in the Methodology 5.3–4 and Appendix 2.
 
 **Contributions.**
 
 1. **Methodology.** A QRF‑based interval pipeline for 72‑hour returns with time‑decay weighting, isotonic non‑crossing, and post‑hoc calibration (residual‑quantile; split‑conformal as a check).
 2. **Evaluation design.** Rolling, block‑wise validation tailored to non‑stationary crypto series; comparison to LQR and LightGBM using pinball loss, empirical coverage, and interval width.
-3. **Empirical insight.** Feature‑family analysis of tail drivers and an applied risk‑use case (interval‑aware sizing).
+3. **Empirical insight.** Economic value of calibrated intervals. Demonstrate that QRF’s calibrated, sharp bands generate positive, net-of-costs risk-adjusted returns under risk-aware sizing (risk-scaled and thresholded), with smaller drawdowns than fixed-size exposure.
 
 We benchmark our adapted QRF against a parametric Linear Quantile Regression (LQR) and a powerful LightGBM model [@Ke2017] augmented with **conformal prediction** [@Romano2019]. Preliminary results suggest that the primary advantage of the adapted QRF framework lies in its superior ability to synthesise on-chain activity and market microstructure features to anticipate shifts in return distribution skewness—a dynamic that linear models fail to capture.
 
-## Scope and Delimitations
+#### Scope and Delimitations
 
 This dissertation provides a rigorous methodological and empirical analysis of interval forecasting. It does not aim to develop a complete, production-ready trading system, which would require further considerations such as transaction costs, liquidity constraints, and execution latency. Furthermore, the feature set, while comprehensive, is confined to publicly available market and on-chain data, thereby excluding alternative data sources such as social media sentiment or developer activity metrics, which may also contain predictive information. The findings are specific to the mid-cap tokens within the Solana ecosystem during the observation period and may not be directly generalisable to other blockchains, market-cap tiers, or market regimes without further investigation and potential recalibration.
 
-## Research Question
+#### Research Questions
 
 This framework motivates these core research questions:
 
-1. **RQ1.** Do Quantile Regression Forests (QRF) deliver lower pinball loss for 72‑hour returns than Linear Quantile Regression and LightGBM across τ ∈ {0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95}?
-2. **RQ2.** After post‑hoc calibration, do QRF intervals achieve closer‑to‑nominal coverage (80%/90%) with competitive width?
-3. **RQ3.** Which feature families (momentum, volatility, liquidity, on‑chain activity, cross‑asset) drive tail behaviour in mid‑cap Solana tokens?
+1. **RQ1.** Accuracy across quantiles and regimes. Across the τ ∈ {0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95} and different volatility regimes, do Quantile Regression Forests (QRF) produce consistently lower pinball loss than Linear Quantile Regression (LQR) and LightGBM baselines?
+2. **RQ2.** Calibration and sharpness across tokens. After post‑hoc calibration, can QRF intervals maintain near‑nominal coverage (80 % and 90 %) while achieving narrower widths than LQR and LightGBM, and does this hold across tokens and regimes?
+3. **RQ3.** Trading utility. Does the superior statistical quality—accuracy, calibration and sharpness—of QRF prediction intervals translate into demonstrable economic value when applied to a risk‑aware portfolio of mid‑cap Solana tokens?

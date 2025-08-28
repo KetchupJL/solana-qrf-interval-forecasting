@@ -18,13 +18,19 @@ book:
   appendices:  
     - appendices/A1_data_appendix.qmd
     - appendices/A2_models_appendix.qmd
-    - appendices/A3_extra_figs.qmd 
+    - appendices/A3_results_appendix.qmd
+    - appendices/A4_extras_appendix.qmd
+    - appendices/A5_code_appendix.qmd
 
 
 format:
   pdf:
     documentclass: scrreprt
     pdf-engine: xelatex
+    include-before-body: [cover.tex, toc.tex]
+    header-includes:
+      - \usepackage{graphicx}             
+      - \AtBeginDocument{\renewcommand{\maketitle}{}}
     default-image-extension: pdf
     toc: true
     papersize: a4
@@ -34,6 +40,7 @@ format:
     tbl-cap-location: top
     df-print: default
     link-citations: true
+    keep-tex: true
 
 bibliography: references.bib
 csl: csl/harvard.csl

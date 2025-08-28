@@ -1,10 +1,18 @@
 ---
 title: "Abstract"
-subtitle: "Interval Forecasting of Cryptocurrency Returns using Quantile Regression Forests: An Application to the Solana Ecosystem"
-format: pdf
+format:
+  pdf:
+    number-sections: true
+    keep-tex: false
+page-layout: article
+toc: false
 ---
 
 ::: {.abstract}
-**Abstract.** (200–300 words placeholder) Problem, data (12-h bars; 72-h target), models (QRF, LQR, LGBM), rolling CV (120/24/6), metrics (pinball, coverage, width), key results + trading relevance.
+Cryptocurrency returns are heavy tailed, regime dependent, and poorly served by mean-based forecasts. The problem addressed here is to forecast the distribution of future returns for mid-capitalisation tokens on the Solana blockchain. We study 72-hour log returns for tokens with market capitalisation above \$30 million and listing age greater than six months. Raw price, volume, and on-chain metrics are aggregated into 12-hour bars, yielding 6,464 observations between 5 December 2024 and 3 June 2025. The 72-hour target is defined as the difference in log prices six 12-hour bars apart. More than one hundred engineered features span momentum, volatility, market microstructure, on-chain activity, and cross-asset context.
+
+Three models are compared. Linear Quantile Regression (LQR) provides a parametric benchmark. LightGBM uses gradient boosting with the pinball loss to estimate multiple quantiles. The core model is an adapted Quantile Regression Forest (QRF) with time-decay weights, isotonic non-crossing enforcement, and regime-aware residual-quantile offsets, followed by post-hoc calibration. Evaluation follows a blocked rolling cross-validation design with 120 bars for training, a 24-bar calibration gap, and a 6-bar test step (120/24/6), repeated across tokens. Models are assessed by per-quantile pinball loss, empirical coverage of central 80% and 90% intervals, and mean width, with efficiency judged on the coverage–width plane.
+
+Results indicate that QRF achieves the lowest pinball loss in the risk-critical lower tails (tau ≤ 0.25) and remains competitive at the median. After calibration, QRF attains near-nominal 90% coverage (0.88) with only modest under-coverage at 80% (0.78). LQR under-covers substantially, while LightGBM over-covers through wider bands. For like-for-like coverage, QRF intervals are materially narrower than LightGBM’s, and widths scale appropriately with volatility. When these calibrated intervals drive risk-aware position sizing, a continuous risk-scaled rule achieves a Sharpe of about 0.86 with smaller drawdowns, and a thresholded rule that trades only when the 80% interval is directional reaches a Sharpe of about 0.92. In short, accurate and calibrated interval forecasts translate into tangible trading benefits in the Solana ecosystem.
 :::
 

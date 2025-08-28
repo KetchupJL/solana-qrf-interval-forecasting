@@ -1,0 +1,30 @@
+# Appendix 3: Results, Plots and Tables {#app-r1}
+
+**Overall accuracy and Calibration**
+
+![Pinball loss by model and quantile.](figures/final/fig-pinball-by-quantile-by-model.pdf){#fig-pinball-by-quantile-by-model fig-align="center" width="64%"}
+
+![Per-token pinball loss by model and quantile; boxes show dispersion across tokens, diamonds mark per-quantile means.](figures/final/fig-pinball-per-token.pdf){#fig-pinball-per-token fig-align="center" width="70%"}
+
+![QRF empirical coverage by volatility regime for 80% and 90% intervals; dashed lines mark nominal coverage.](figures/final/fig-qrf-reliability-by-regime-bars.pdf){#fig-qrf-reliability-by-regime-bars fig-align="center" width="62%"}
+
+![Median and 80% prediction intervals for QRF, LQR, and LightGBM on the same token; realised series overlaid.](figures/final/fig-mew-80preds.pdf){#fig-compare-80preds fig-align="center" width="72%"}
+
+![Coverage of 80% and 90% prediction intervals by model; dashed lines mark nominal levels.](figures/final/fig-coverage-by-model.pdf){#fig-coverage-by-model fig-align="center" width="64%"}
+
+[Model Widths](paper/figures/raw/fig-width-distributions.pdf){#fig-widths fig-align="center" width="64%"}
+
+
+**Table: Coverage by Regime:**
+
+| regime   | w80_decile | coverage80 | n   |
+|:--------:|:----------:|:----------:|:---:|
+| mid      | 1          | 0.318      | 44  |
+| mid      | 5          | 0.793      | 111 |
+| mid      | 10         | 0.893      | 28  |
+| quiet    | 6          | 0.871      | 139 |
+| quiet    | 8          | 0.964      | 83  |
+| quiet    | 10         | 0.944      | 18  |
+| volatile | 1          | 0.182      | 22  |
+| volatile | 5          | 0.709      | 55  |
+| volatile | 10         | 0.821      | 280 |
