@@ -11,11 +11,8 @@
 This repository hosts the full research pipeline for my MSc dissertation:  
 **“Interval Forecasting of Cryptocurrency Returns using Quantile Regression Forests: An Application to the Solana Ecosystem.”**
 
-The study addresses a central question in quantitative finance:
-
-> Can an adapted Quantile Regression Forest (QRF) framework provide sharper, better-calibrated return intervals for mid-cap Solana tokens compared to Linear Quantile Regression (LQR) and LightGBM baselines?
-
-Unlike traditional point forecasts, the focus here is on **distributional accuracy** and **calibrated risk intervals**, which are essential for **quant trading and risk management** in highly volatile, heavy-tailed markets like crypto.
+The study investigates whether an adapted **Quantile Regression Forest (QRF)** can provide sharper, better-calibrated return intervals for mid-cap Solana tokens compared with **Linear Quantile Regression (LQR)** and **LightGBM with conformal calibration**.  
+The focus is on **distributional accuracy and calibrated risk intervals**, directly relevant for **quantitative risk modelling** and **algorithmic trading**.
 
 ---
 
@@ -41,6 +38,54 @@ Unlike traditional point forecasts, the focus here is on **distributional accura
 
 ---
 
+
+### How the Project Was Built
+
+#### 1. Data Ingestion  
+- **Tools**: Python, TypeScript, SQL, Google BigQuery.  
+- Built custom pipelines to collect data from **SolanaTracker**, **CoinGecko**, and **Helius APIs**, plus Solana blockchain data via BigQuery.  
+- Designed modular ingestion scripts to automate retrieval of OHLCV, liquidity, and on-chain activity.  
+
+#### 2. Data Processing, EDA and Cleaning  
+- **Skills**: Pandas, NumPy, Seaborn, Matplotlib.  
+- Aligned raw streams into 12-hour bins; handled >18% missingness through imputation strategies.  
+- Produced diagnostics: missingness heatmaps, heavy-tail distribution checks, volatility clustering plots, and correlation matrices.  
+
+#### 3. Feature Engineering  
+- Created >100 predictors across:  
+  - Momentum & trend (returns, RSI, MACD),  
+  - Volatility & tails (realised vol, downside vol, skewness),  
+  - Liquidity & flow (Amihud illiquidity, spreads),  
+  - On-chain activity (wallet growth, transfer counts),  
+  - Market context (BTC/ETH/SOL spillovers, TVL).  
+- Applied pruning (variance filters, collinearity thresholds, LightGBM gain importance) to finalise a robust feature set.  
+
+#### 4. Model Building  
+- Benchmarks: **Linear Quantile Regression (statsmodels)**, **LightGBM quantile mode** with conformal calibration.  
+- Core model: **Quantile Regression Forests** with time-decay weights, isotonic regression, and regime-aware calibration.  
+- Implemented blocked walk-forward validation (120/24/6 split) to avoid leakage and mimic live trading conditions.  
+
+#### 5. Analysis, Testing and Validation  
+- Evaluation metrics: pinball loss, empirical coverage, interval width, interval score.  
+- Reliability curves to assess calibration; efficiency plane (coverage vs width) for sharpness–coverage trade-offs.  
+- Formal statistical comparison: Diebold–Mariano tests with HAC variance; Model Confidence Set for robust model ranking.  
+- Backtesting: applied calibrated intervals to **risk-aware position sizing rules**, measuring Sharpe ratio and drawdowns.  
+
+#### 6. Communication (Report & Presentation)  
+- Wrote a full 80+ page dissertation structured as an academic paper.  
+- Produced high-quality figures (fan charts, calibration curves, spaghetti plots) with LaTeX/Quarto integration.  
+- Presented the findings in a 5-minute defence, highlighting both research contributions and **practical value for quant trading**.
+
+---  
+
+### Research Questions
+
+1. Do QRFs deliver **lower pinball loss** across quantiles than LQR and LightGBM?  
+2. Can calibrated QRF intervals achieve **nominal coverage with narrower widths** across regimes and tokens?  
+3. Do statistically superior intervals translate into **economic value in trading backtests**?  
+
+---
+
 ### Results at a Glance
 
 | Metric                          | QRF (final) | LightGBM (tuned) | LQR |
@@ -48,7 +93,7 @@ Unlike traditional point forecasts, the focus here is on **distributional accura
 | Pinball loss @ τ=0.10           | **0.022**   | 0.055            | 0.041 |
 | Coverage (90% band)             | **0.878**   | 0.979            | 0.622 |
 | Mean width (90% band)           | 0.63        | 0.92             | 0.58 |
-| Sharpe (interval sizing rule)   | **0.92**    | 0.74             | 0.65 |
+| Sharpe (interval sizing rule)   | **0.92**    | -             | - |
 
 ---
 
@@ -89,19 +134,11 @@ Representative results are included in `paper/figures/final/`. For example:
 
 | Category | Tools |
 |----------|-------|
-| Modelling | [Quantile-Forest (Cython)](https://github.com/zillow/quantile-forest), [LightGBM](https://github.com/microsoft/LightGBM), [statsmodels QuantReg](https://www.statsmodels.org/) |
-| Calibration | [MAPIE](https://github.com/scikit-learn-contrib/MAPIE) (conformal intervals), custom isotonic & regime-aware adjustments |
-| Data | Pandas, NumPy, Google BigQuery (Solana chain data), SolanaTracker API, CoinGecko API |
-| Evaluation | Pinball loss, Diebold–Mariano tests, Sharpness–Coverage efficiency |
+| Modelling | Quantile-Forest (Cython), LightGBM, statsmodels QuantReg |
+| Calibration | MAPIE (conformal intervals), isotonic regression, regime-aware adjustments |
+| Data | Pandas, NumPy, APIs (SolanaTracker, CoinGecko, Helius), Google BigQuery |
+| Evaluation | Pinball loss, DM tests, Sharpness–Coverage efficiency |
 | Visualisation | Matplotlib, Seaborn |
-
----
-
-### Research Questions
-
-1. Do QRFs deliver **lower pinball loss** across quantiles than LQR and LightGBM?  
-2. Can calibrated QRF intervals achieve **nominal coverage with narrower widths** across regimes and tokens?  
-3. Do statistically superior intervals translate into **economic value in trading backtests**?  
 
 ---
 
