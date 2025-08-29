@@ -73,14 +73,15 @@ Representative results are included in `paper/figures/final/`. For example:
 - **Quantile Spaghetti Plot (AVA token)**  
   ![Quantile Spaghetti Plot](paper/figures/final/fig_quantile_spaghetti_ava.pdf)
 
-- **Calibration curve (empirical vs nominal coverage)**  
-  *(Insert `fig_calibration_curve.pdf` here if available)*
+- **Calibration curve (empirical vs nominal coverage)**
+  ![Calibration curve Plot](paper/figures/final/fig_calibration_curve.pdf)  
 
-- **Sharpness–coverage efficiency scatter**  
-  *(Insert `fig_efficiency_scatter.pdf` here)*
+- **Sharpness–coverage efficiency scatter**
+  ![Sharpness-coverage scatter](paper/figures/final/fig_efficiency_scatter.pdf)
 
-- **Representative fan chart (per-token intervals)**  
-  *(Insert e.g. `fig_fanchart_ray.pdf` here)*
+
+- **Representative fan chart (per-token intervals)**
+  ![Medium + 80% pred intervals for MEW](paper/figures/final/fig-mew-80preds.pdf.pdf)
 
 ---
 
