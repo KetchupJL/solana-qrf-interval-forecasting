@@ -104,7 +104,6 @@ The focus is on **distributional accuracy and calibrated risk intervals**, direc
 ├── notebooks/            # Jupyter notebooks (EDA, modelling, calibration, results)
 ├── paper/                # Dissertation text and figures
 │   └── figures/final/    # Key plots (fan charts, calibration curves, efficiency scatter)
-├── src/                  # Python modules for data, feature engineering, modelling
 ├── results/              # Tables, backtest outputs, significance tests
 └── README.md
 ```
